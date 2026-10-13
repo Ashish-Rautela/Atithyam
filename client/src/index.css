@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   Design tokens — "Devbhoomi": Himalayan sky, deodar forest, warm ivory, and
+   Aipan (ऐपण) — the red-ochre (geru) and rice-paste white folk art of Kumaon.
+   ========================================================================== */
+@theme {
+  --color-pine: #102f29;
+  --color-forest: #1d5746;
+  --color-forest-600: #24694f;
+  --color-moss: #3f7a62;
+  --color-glacier: #b8dce8;
+  --color-sky: #2e66a8;
+  --color-sky-deep: #163d6b;
+  --color-mist: #e8f0eb;
+  --color-ivory: #f7f4ec;
+  --color-parchment: #efe8d8;
+  --color-rice: #fffdf7;
+  --color-geru: #8e1b1b;
+  --color-geru-600: #a52a24;
+  --color-geru-50: #f8e9e4;
+  --color-amber: #e8a15a;
+  --color-amber-ink: #8a5216;
+  --color-slate: #5e6d68;
+  --color-ink: #13231f;
+  --color-line: rgb(16 47 41 / 0.1);
+
+  /* status — always paired with an icon or word */
+  --color-good: #146c49;
+  --color-good-bg: #e2f1e8;
+  --color-warn: #8a5216;
+  --color-warn-bg: #fbedd9;
+  --color-bad: #a3381f;
+  --color-bad-bg: #fbe6df;
+  --color-info: #2c6e8f;
+  --color-info-bg: #e3eff4;
+
+  /* charts — validated pair (you = forest, market = slate blue); diverging warm ↔ grey ↔ cool */
+  --color-you: #117f55;
+  --color-market: #6a7fc4;
+  --color-peer: #aab4d2;
+  --color-div-neg: #b4622d;
+  --color-div-mid: #efeee9;
+  --color-div-pos: #2c6e8f;
+
+  --font-serif: 'Fraunces Variable', 'Fraunces', Georgia, serif;
+  --font-sans: 'Manrope Variable', 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-deva: 'Tiro Devanagari Hindi', 'Noto Serif Devanagari', serif;
+
+  --shadow-card: 0 1px 0 rgb(16 47 41 / 0.04), 0 22px 48px -28px rgb(16 47 41 / 0.45);
+  --shadow-lift: 0 30px 70px -30px rgb(16 47 41 / 0.55);
+  --radius-4xl: 2rem;
+
+  --animate-rise: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@layer base {
+  /* Grid items default to min-width:auto, so a wide table inside one stretches the column on phones. */
+  .grid > * { min-width: 0; }
+  /* Fixed header: keep #anchor targets clear of it. */
+  section[id] { scroll-margin-top: 5rem; }
+
+  html { color-scheme: light; -webkit-text-size-adjust: 100%; }
+  body { @apply bg-ivory font-sans text-ink antialiased; }
+  h1, h2, h3 { text-wrap: balance; }
+  :focus-visible { outline: 3px solid var(--color-amber); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: var(--color-glacier); color: var(--color-pine); }
+}
+
+@layer components {
+  /* Inputs share one look across the product. */
+  .field { @apply w-full rounded-2xl border border-line bg-white px-4 py-3 text-[0.95rem] text-ink shadow-[inset_0_1px_0_rgb(16_47_41/0.03)] outline-none transition placeholder:text-slate/70 focus:border-forest focus:ring-4 focus:ring-forest/10; }
+  .label { @apply mb-1.5 block text-xs font-bold tracking-wide text-slate uppercase; }
+  .eyebrow { @apply text-[0.72rem] font-extrabold tracking-[0.16em] uppercase; }
+  .num { font-variant-numeric: tabular-nums; }
+  .scrollbar-thin { scrollbar-width: thin; }
+}
+
+@utility text-shadow-soft { text-shadow: 0 2px 18px rgb(8 25 22 / 0.45); }
+
+/* Respect reduced motion everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

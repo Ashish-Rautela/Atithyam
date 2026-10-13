@@ -1,0 +1,366 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Review Intelligence Platform - CI/CD. Deploy this stack once by hand. Every push to the branch
+  then runs: Source -> Build (tests + Docker image to ECR) -> Infrastructure (infra/template.yaml)
+  -> Deploy (rolls the new image onto the EC2 instance and smoke-tests the live site).
+
+Parameters:
+  AppName:
+    Type: String
+    Default: rip
+    AllowedPattern: '^[a-z][a-z0-9-]{1,14}$'
+  EnvName:
+    Type: String
+    Default: prod
+    AllowedPattern: '^[a-z][a-z0-9-]{1,9}$'
+  RepositoryId:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+    Description: Your repository as owner/name, e.g. sachin/review-intelligence-platform
+  BranchName:
+    Type: String
+    Default: main
+  SourceProvider:
+    Type: String
+    Default: GitHub
+    AllowedValues: [GitHub, GitLab, Bitbucket]
+  RunTests:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Run the server test suite (Postgres + PostGIS + Chromium) before building the image.
+  InstanceType:
+    Type: String
+    Default: t3.medium
+    AllowedValues: [t3.small, t3.medium, t3.large, t3.xlarge, m6i.large, m7i.large]
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    AllowedValues: [db.t4g.micro, db.t4g.small, db.t4g.medium, db.t4g.large]
+  BackgroundScraping:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: true = automatic 15-day refreshes and neighbourhood collection on the server.
+  HeadedBrowser:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: true = headed Chromium in a virtual display (blocked less often than headless).
+  DomainName:
+    Type: String
+    Default: ''
+    Description: Optional custom domain. Leave empty to use the CloudFront address.
+  AcmCertificateArn:
+    Type: String
+    Default: ''
+    Description: Required with DomainName - ACM certificate in us-east-1.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Source code }
+        Parameters: [SourceProvider, RepositoryId, BranchName]
+      - Label: { default: Naming }
+        Parameters: [AppName, EnvName]
+      - Label: { default: Application settings }
+        Parameters: [InstanceType, DbInstanceClass, BackgroundScraping, HeadedBrowser, RunTests]
+      - Label: { default: Optional custom domain }
+        Parameters: [DomainName, AcmCertificateArn]
+
+Resources:
+  # Approve this once in the console: Developer Tools -> Settings -> Connections -> Update pending connection.
+  SourceConnection:
+    Type: AWS::CodeStarConnections::Connection
+    Properties:
+      ConnectionName: !Sub '${AppName}-${EnvName}-src' # max 32 characters
+      ProviderType: !Ref SourceProvider
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-artifacts
+            Status: Enabled
+            ExpirationInDays: 30
+
+  ImageRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${AppName}-${EnvName}'
+      EmptyOnDelete: true
+      ImageScanningConfiguration: { ScanOnPush: true }
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {"rules":[{"rulePriority":1,"description":"Keep the last 15 images",
+            "selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":15},
+            "action":{"type":"expire"}}]}
+
+  BuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/${AppName}/${EnvName}/pipeline'
+      RetentionInDays: 30
+
+  # ------------------------------------------------------------------ CodeBuild
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codebuild.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: build-and-deploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt BuildLogGroup.Arn # ends in :* (covers its log streams)
+              - Effect: Allow
+                Action: [s3:GetObject, s3:GetObjectVersion, s3:PutObject]
+                Resource: !Sub '${ArtifactBucket.Arn}/*'
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource: !GetAtt ImageRepository.Arn
+              # Deploy stage: find the instance, run the deploy script on it through SSM.
+              - Effect: Allow
+                Action: [ec2:DescribeInstances, ssm:DescribeInstanceInformation, ssm:ListCommandInvocations, ssm:GetCommandInvocation]
+                Resource: '*'
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-RunShellScript'
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource: !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+                Condition:
+                  StringEquals:
+                    'ssm:resourceTag/Project': !Ref AppName
+                    'ssm:resourceTag/Environment': !Ref EnvName
+              - Effect: Allow
+                Action: [ssm:GetParameter, ssm:PutParameter]
+                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${EnvName}/*'
+
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${AppName}-${EnvName}-build'
+      Description: Tests, then builds and pushes the Docker image
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      TimeoutInMinutes: 45
+      Artifacts: { Type: CODEPIPELINE }
+      Source: { Type: CODEPIPELINE, BuildSpec: infra/buildspec-build.yml }
+      Cache: { Type: LOCAL, Modes: [LOCAL_DOCKER_LAYER_CACHE, LOCAL_SOURCE_CACHE, LOCAL_CUSTOM_CACHE] }
+      LogsConfig:
+        CloudWatchLogs: { Status: ENABLED, GroupName: !Ref BuildLogGroup, StreamName: build }
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:7.0
+        PrivilegedMode: true # needed for docker build
+        EnvironmentVariables:
+          - { Name: IMAGE_REPO_URI, Value: !GetAtt ImageRepository.RepositoryUri }
+          - { Name: RUN_TESTS, Value: !Ref RunTests }
+
+  DeployProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${AppName}-${EnvName}-deploy'
+      Description: Rolls the new image onto the instance and smoke-tests the live site
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      TimeoutInMinutes: 30
+      Artifacts: { Type: CODEPIPELINE }
+      Source: { Type: CODEPIPELINE, BuildSpec: infra/buildspec-deploy.yml }
+      LogsConfig:
+        CloudWatchLogs: { Status: ENABLED, GroupName: !Ref BuildLogGroup, StreamName: deploy }
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        EnvironmentVariables:
+          - { Name: APP_NAME, Value: !Ref AppName }
+          - { Name: ENV_NAME, Value: !Ref EnvName }
+
+  # ------------------------------------------------------------------ CloudFormation (app stack)
+  # Creates/updates the app stack. PowerUser for the AWS resources, plus IAM limited to roles
+  # and instance profiles named after the app stack.
+  CloudFormationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudformation.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/PowerUserAccess'
+      Policies:
+        - PolicyName: app-stack-iam
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:UpdateRole
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:PassRole
+                  - iam:PutRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:CreateInstanceProfile
+                  - iam:DeleteInstanceProfile
+                  - iam:GetInstanceProfile
+                  - iam:AddRoleToInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile
+                  - iam:TagInstanceProfile
+                  - iam:ListInstanceProfilesForRole
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${AppName}-${EnvName}-*'
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/${AppName}-${EnvName}-*'
+              - Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: '*'
+
+  # ------------------------------------------------------------------ Pipeline
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codepipeline.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: pipeline
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:GetObjectVersion, s3:PutObject, s3:GetBucketVersioning, s3:GetBucketLocation, s3:ListBucket]
+                Resource: [!GetAtt ArtifactBucket.Arn, !Sub '${ArtifactBucket.Arn}/*']
+              - Effect: Allow
+                Action: [codestar-connections:UseConnection, codeconnections:UseConnection]
+                Resource: !Ref SourceConnection
+              - Effect: Allow
+                Action: [codebuild:StartBuild, codebuild:BatchGetBuilds]
+                Resource: [!GetAtt BuildProject.Arn, !GetAtt DeployProject.Arn]
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:ValidateTemplate
+                Resource: !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AppName}-${EnvName}/*'
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt CloudFormationRole.Arn
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${AppName}-${EnvName}'
+      PipelineType: V2
+      ExecutionMode: QUEUED
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore: { Type: S3, Location: !Ref ArtifactBucket }
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId: { Category: Source, Owner: AWS, Provider: CodeStarSourceConnection, Version: '1' }
+              Configuration:
+                ConnectionArn: !Ref SourceConnection
+                FullRepositoryId: !Ref RepositoryId
+                BranchName: !Ref BranchName
+                OutputArtifactFormat: CODE_ZIP
+                DetectChanges: true
+              OutputArtifacts: [{ Name: SourceOutput }]
+        - Name: Build
+          Actions:
+            - Name: TestAndBuildImage
+              ActionTypeId: { Category: Build, Owner: AWS, Provider: CodeBuild, Version: '1' }
+              Configuration: { ProjectName: !Ref BuildProject }
+              InputArtifacts: [{ Name: SourceOutput }]
+              OutputArtifacts: [{ Name: BuildOutput }]
+        - Name: Infrastructure
+          Actions:
+            - Name: AppStack
+              ActionTypeId: { Category: Deploy, Owner: AWS, Provider: CloudFormation, Version: '1' }
+              InputArtifacts: [{ Name: SourceOutput }]
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                StackName: !Sub '${AppName}-${EnvName}'
+                TemplatePath: SourceOutput::infra/template.yaml
+                Capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM
+                RoleArn: !GetAtt CloudFormationRole.Arn
+                ParameterOverrides: !Sub |
+                  {
+                    "AppName": "${AppName}",
+                    "EnvName": "${EnvName}",
+                    "ImageRepositoryName": "${ImageRepository}",
+                    "InstanceType": "${InstanceType}",
+                    "DbInstanceClass": "${DbInstanceClass}",
+                    "BackgroundScraping": "${BackgroundScraping}",
+                    "HeadedBrowser": "${HeadedBrowser}",
+                    "DomainName": "${DomainName}",
+                    "AcmCertificateArn": "${AcmCertificateArn}"
+                  }
+        - Name: Deploy
+          Actions:
+            - Name: RolloutAndSmokeTest
+              ActionTypeId: { Category: Build, Owner: AWS, Provider: CodeBuild, Version: '1' }
+              Configuration: { ProjectName: !Ref DeployProject }
+              InputArtifacts: [{ Name: BuildOutput }]
+
+Outputs:
+  ConnectionArn:
+    Description: Approve this connection once (Developer Tools -> Settings -> Connections)
+    Value: !Ref SourceConnection
+  PipelineUrl:
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${Pipeline}/view'
+  ImageRepositoryUri:
+    Value: !GetAtt ImageRepository.RepositoryUri
+  AppStackName:
+    Description: Created by the pipeline's Infrastructure stage; its Outputs show the site URL
+    Value: !Sub '${AppName}-${EnvName}'

@@ -1,0 +1,9 @@
+# Pipeline "Deploy" stage (CodeBuild). Input: the Build stage artifact (imagetag.txt + infra/).
+# Runs infra/ec2/release.sh, which hands the new image to the EC2 instance through SSM, waits for
+# the instance's health check, then smoke-tests the live site through CloudFront.
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - bash infra/ec2/release.sh

@@ -1,0 +1,61 @@
+# Pipeline "Build" stage (CodeBuild, aws/codebuild/standard:7.0, privileged for Docker).
+# 1. Runs the server tests against a throwaway Postgres 16 + PostGIS and a real Chromium.
+# 2. Builds the single app image (API + UI + worker) and pushes it to ECR, tagged with the commit.
+version: 0.2
+
+env:
+  variables:
+    DOCKER_BUILDKIT: '1'
+    RUN_TESTS: 'true'
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - node --version && npm --version
+      - if [ "$RUN_TESTS" = "true" ]; then bash infra/ci/setup-test-db.sh; fi
+
+  pre_build:
+    commands:
+      - IMAGE_TAG=$(printf '%s' "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-12)
+      - if [ -z "$IMAGE_TAG" ]; then IMAGE_TAG="build-${CODEBUILD_BUILD_NUMBER}"; fi
+      - echo "Image tag $IMAGE_TAG"
+      - |
+        if [ "$RUN_TESTS" = "true" ]; then
+          (
+            set -e
+            export TEST_DATABASE_URL="$(cat /tmp/test-database-url)"
+            npm ci --no-audit --no-fund
+            npm exec -w server -- playwright install --with-deps chromium
+            npm test
+          )
+        fi
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "${IMAGE_REPO_URI%%/*}"
+
+  build:
+    commands:
+      - docker pull "$IMAGE_REPO_URI:latest" || true
+      - >-
+        docker build
+        --cache-from "$IMAGE_REPO_URI:latest"
+        --build-arg BUILDKIT_INLINE_CACHE=1
+        --label "org.opencontainers.image.revision=$IMAGE_TAG"
+        -t "$IMAGE_REPO_URI:$IMAGE_TAG" -t "$IMAGE_REPO_URI:latest" .
+
+  post_build:
+    commands:
+      # post_build also runs after a failed build; never push a half-built image.
+      - test "$CODEBUILD_BUILD_SUCCEEDING" = "1"
+      - docker push "$IMAGE_REPO_URI:$IMAGE_TAG"
+      - docker push "$IMAGE_REPO_URI:latest"
+      - printf '%s' "$IMAGE_TAG" > imagetag.txt
+
+artifacts:
+  files:
+    - imagetag.txt
+    - infra/**/*
+
+cache:
+  paths:
+    - /root/.npm/**/*

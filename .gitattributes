@@ -1,0 +1,11 @@
+# Scripts and configs run on Linux (CodeBuild, EC2, Docker): always LF, even on Windows checkouts.
+* text=auto
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.env text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+*.webp binary
+*.jpg binary
+*.png binary

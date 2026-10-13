@@ -1,0 +1,29 @@
+{
+  "name": "@rip/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/apps/api/server.js",
+  "scripts": {
+    "dev": "node --watch-path=src --env-file-if-exists=.env src/apps/api/server.js",
+    "start": "node --env-file-if-exists=.env src/apps/api/server.js",
+    "worker": "node --env-file-if-exists=.env src/apps/worker/main.js",
+    "test": "vitest run",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "smoke": "node --env-file-if-exists=.env scripts/smoke.js",
+    "smoke:seed": "node --env-file-if-exists=.env scripts/smoke-seed.js",
+    "ai:check": "node --env-file-if-exists=.env scripts/ai-check.js"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "express": "5.3.0",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "playwright": "1.64.0"
+  },
+  "devDependencies": {
+    "pino-pretty": "13.2.0",
+    "supertest": "7.3.1",
+    "vitest": "5.0.4"
+  }
+}

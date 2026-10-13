@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.local
+
+# local runtime data (file store, raw page snapshots, browser profile)
+server/data/
+server/.browser-profile/
+server/data/raw/
+
+*.log
+.DS_Store
+coverage/

@@ -1,0 +1,495 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Review Intelligence Platform - application stack. One EC2 instance runs the API (with the built
+  UI) and the scraping worker as Docker containers; RDS PostgreSQL 16 + PostGIS stores the data;
+  CloudFront serves the site over HTTPS. Normally deployed by the pipeline (infra/pipeline.yaml).
+
+Parameters:
+  AppName:
+    Type: String
+    Default: rip
+    AllowedPattern: '^[a-z][a-z0-9-]{1,14}$'
+    Description: Short lowercase name used in resource names, tags and SSM paths.
+  EnvName:
+    Type: String
+    Default: prod
+    AllowedPattern: '^[a-z][a-z0-9-]{1,9}$'
+    Description: Environment name (prod, staging, ...).
+  ImageRepositoryName:
+    Type: String
+    Description: ECR repository the pipeline pushes images to (created by the pipeline stack).
+  InstanceType:
+    Type: String
+    Default: t3.medium
+    AllowedValues: [t3.small, t3.medium, t3.large, t3.xlarge, m6i.large, m7i.large]
+    Description: Chromium needs memory. t3.medium (2 vCPU, 4 GB) runs the API and one worker comfortably.
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    AllowedValues: [db.t4g.micro, db.t4g.small, db.t4g.medium, db.t4g.large]
+  DbEngineVersion:
+    Type: String
+    Default: '16.13'
+    AllowedPattern: '^16\.[0-9]+$'
+    Description: PostgreSQL 16 minor version (RDS retires old minors; pick a current one if creation fails).
+  DbAllocatedStorage:
+    Type: Number
+    Default: 20
+    MinValue: 20
+    MaxValue: 500
+    Description: Database storage in GB (grows automatically up to 5x this value).
+  BackgroundScraping:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: >-
+      false = the browser only runs for what users ask for. true = the worker also refreshes every
+      hotel about every 15 days and collects the neighbourhood of new hotels on its own.
+  HeadedBrowser:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: >-
+      true = the worker runs a normal (headed) Chromium inside a virtual display, which sites block
+      less often than headless Chromium. Falls back to headless if the display is unavailable.
+  DomainName:
+    Type: String
+    Default: ''
+    Description: Optional custom domain (e.g. reviews.example.com). Leave empty to use the CloudFront address.
+  AcmCertificateArn:
+    Type: String
+    Default: ''
+    Description: Required with DomainName - an ACM certificate for that domain in us-east-1.
+
+Conditions:
+  IsUsEast1: !Equals [!Ref 'AWS::Region', us-east-1]
+  HasDomain: !And
+    - !Not [!Equals [!Ref DomainName, '']]
+    - !Not [!Equals [!Ref AcmCertificateArn, '']]
+
+Mappings:
+  # AWS managed CloudFront policies (the IDs are the same in every account).
+  CloudFront:
+    Policies:
+      CachingDisabled: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+      CachingOptimized: 658327ea-f89d-4fab-a63d-7e88639e58f6
+      AllViewerExceptHostHeader: b689b0a8-53d0-40ab-baf2-68738e2966ac
+
+Resources:
+  # ------------------------------------------------------------------ Network
+  # Public subnets for the instance (it needs outbound internet for scraping, Gemini and ECR; no
+  # NAT gateway needed). Private subnets for the database. Only CloudFront can reach the instance.
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.40.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{ Key: Name, Value: !Sub '${AppName}-${EnvName}' }]
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: { VpcId: !Ref Vpc, InternetGatewayId: !Ref InternetGateway }
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.40.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags: [{ Key: Name, Value: !Sub '${AppName}-${EnvName}-public-a' }]
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.40.1.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags: [{ Key: Name, Value: !Sub '${AppName}-${EnvName}-public-b' }]
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.40.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags: [{ Key: Name, Value: !Sub '${AppName}-${EnvName}-private-a' }]
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.40.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags: [{ Key: Name, Value: !Sub '${AppName}-${EnvName}-private-b' }]
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref Vpc }
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnetARoutes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnetA, RouteTableId: !Ref PublicRouteTable }
+  PublicSubnetBRoutes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnetB, RouteTableId: !Ref PublicRouteTable }
+
+  # Looks up the region's "CloudFront origin-facing" managed prefix list so port 80 on the
+  # instance only accepts traffic from CloudFront.
+  PrefixListLookupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: describe-prefix-lists
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ec2:DescribeManagedPrefixLists
+                Resource: '*'
+  PrefixListLookupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 30
+      Role: !GetAtt PrefixListLookupRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+
+          NAME = 'com.amazonaws.global.cloudfront.origin-facing'
+
+          def handler(event, context):
+              try:
+                  if event['RequestType'] == 'Delete':
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, 'cloudfront-prefix-list')
+                      return
+                  lists = boto3.client('ec2').describe_managed_prefix_lists(
+                      Filters=[{'Name': 'prefix-list-name', 'Values': [NAME]}])['PrefixLists']
+                  if not lists:
+                      raise RuntimeError(NAME + ' not found in this region')
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS,
+                                   {'PrefixListId': lists[0]['PrefixListId']}, 'cloudfront-prefix-list')
+              except Exception as exc:  # report the failure instead of hanging the stack
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, 'cloudfront-prefix-list',
+                                   reason=str(exc))
+  CloudFrontPrefixList:
+    Type: Custom::CloudFrontPrefixList
+    Properties:
+      ServiceToken: !GetAtt PrefixListLookupFunction.Arn
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App instance - HTTP from CloudFront only, no SSH (use Session Manager)
+      VpcId: !Ref Vpc
+      SecurityGroupEgress:
+        - { IpProtocol: '-1', CidrIp: 0.0.0.0/0, Description: 'Scraping, Gemini, ECR, package updates' }
+      Tags: [{ Key: Name, Value: !Sub '${AppName}-${EnvName}-app' }]
+  AppIngressFromCloudFront:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourcePrefixListId: !GetAtt CloudFrontPrefixList.PrefixListId
+      Description: CloudFront origin-facing servers
+
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database - Postgres from the app instance only
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+          Description: App instance
+      Tags: [{ Key: Name, Value: !Sub '${AppName}-${EnvName}-db' }]
+
+  # ------------------------------------------------------------------ Secrets
+  DbSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      # No fixed Name: deleted secrets linger for up to 30 days and would block re-creating the stack.
+      Description: !Sub '${AppName}-${EnvName} database master user (no rotation - read at deploy time)'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"rip"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true
+
+  # Edit GEMINI_API_KEY in the console (Secrets Manager -> the "AppSecret-..." secret, see the
+  # AppSecretArn output) and re-run the pipeline's Deploy stage. Never change AUTHOR_HASH_SALT once
+  # data exists (reviewer ids depend on it).
+  AppSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: !Sub '${AppName}-${EnvName} app secrets - set GEMINI_API_KEY; keep AUTHOR_HASH_SALT'
+      GenerateSecretString:
+        SecretStringTemplate: '{"GEMINI_API_KEY":""}'
+        GenerateStringKey: AUTHOR_HASH_SALT
+        PasswordLength: 40
+        ExcludePunctuation: true
+
+  # ------------------------------------------------------------------ Database
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets for the database
+      SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      Engine: postgres
+      EngineVersion: !Ref DbEngineVersion
+      DBInstanceClass: !Ref DbInstanceClass
+      DBName: rip
+      MasterUsername: !Sub '{{resolve:secretsmanager:${DbSecret}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DbSecret}:SecretString:password}}'
+      AllocatedStorage: !Ref DbAllocatedStorage
+      MaxAllocatedStorage: 100
+      StorageType: gp3
+      StorageEncrypted: true
+      MultiAZ: false
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: '21:00-22:00'
+      PreferredMaintenanceWindow: 'sun:22:30-sun:23:30'
+      AutoMinorVersionUpgrade: true
+      AllowMajorVersionUpgrade: false
+      CopyTagsToSnapshot: true
+      Tags:
+        - { Key: Project, Value: !Ref AppName }
+        - { Key: Environment, Value: !Ref EnvName }
+
+  # ------------------------------------------------------------------ App instance
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/${AppName}/${EnvName}/app'
+      RetentionInDays: 30
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+      Policies:
+        - PolicyName: app
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
+                Resource: !Sub 'arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ImageRepositoryName}'
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: [!Ref DbSecret, !Ref AppSecret]
+              - Effect: Allow
+                Action: [ssm:GetParameter, ssm:GetParameters]
+                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${EnvName}/*'
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents, logs:DescribeLogStreams]
+                Resource: !GetAtt LogGroup.Arn
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  # IMDSv2 only.
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        MetadataOptions:
+          HttpTokens: required
+          HttpPutResponseHopLimit: 1
+          HttpEndpoint: enabled
+
+  AppInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicDefaultRoute
+    Properties:
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      SubnetId: !Ref PublicSubnetA
+      SecurityGroupIds: [!Ref AppSecurityGroup]
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs: { VolumeSize: 30, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true }
+      Tags:
+        - { Key: Name, Value: !Sub '${AppName}-${EnvName}-app' }
+        - { Key: Project, Value: !Ref AppName }
+        - { Key: Environment, Value: !Ref EnvName }
+        - { Key: Role, Value: app }
+      # First boot: Docker, swap, then start the last deployed version if there is one (the
+      # pipeline's Deploy stage stores the deploy script and image tag in SSM).
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          dnf install -y docker jq
+          systemctl enable --now docker
+          if [ ! -f /swapfile ]; then
+            fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          fi
+          install -d -m 700 /opt/rip
+          cat > /etc/rip.env <<'EOF'
+          APP=${AppName}
+          ENV=${EnvName}
+          REGION=${AWS::Region}
+          EOF
+          P=/${AppName}/${EnvName}/deploy
+          if TAG=$(aws ssm get-parameter --region ${AWS::Region} --name $P/image-tag --query Parameter.Value --output text 2>/dev/null); then
+            aws ssm get-parameter --region ${AWS::Region} --name $P/script --query Parameter.Value --output text > /opt/rip/deploy.sh
+            bash /opt/rip/deploy.sh "$TAG" || echo "Bootstrap deploy failed; the next pipeline run will retry"
+          fi
+
+  # Fixed public address, so CloudFront's origin name never changes.
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags: [{ Key: Name, Value: !Sub '${AppName}-${EnvName}-app' }]
+  ElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ElasticIp.AllocationId
+      InstanceId: !Ref AppInstance
+
+  # ------------------------------------------------------------------ CloudFront (HTTPS)
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: ElasticIpAssociation
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub '${AppName}-${EnvName} review intelligence'
+        HttpVersion: http2and3
+        PriceClass: PriceClass_200
+        Aliases: !If [HasDomain, [!Ref DomainName], !Ref 'AWS::NoValue']
+        ViewerCertificate: !If
+          - HasDomain
+          - { AcmCertificateArn: !Ref AcmCertificateArn, SslSupportMethod: sni-only, MinimumProtocolVersion: TLSv1.2_2021 }
+          - { CloudFrontDefaultCertificate: true }
+        Origins:
+          - Id: app
+            # The instance's public DNS name, built from the Elastic IP (CloudFront needs a name, not an IP).
+            DomainName: !If
+              - IsUsEast1
+              - !Sub ['ec2-${Dashed}.compute-1.amazonaws.com', { Dashed: !Join ['-', !Split ['.', !Ref ElasticIp]] }]
+              - !Sub ['ec2-${Dashed}.${AWS::Region}.compute.amazonaws.com', { Dashed: !Join ['-', !Split ['.', !Ref ElasticIp]] }]
+            CustomOriginConfig:
+              HTTPPort: 80
+              OriginProtocolPolicy: http-only
+              OriginReadTimeout: 60
+              OriginKeepaliveTimeout: 30
+        # API and pages: never cached, every header/cookie/query string passed through.
+        DefaultCacheBehavior:
+          TargetOriginId: app
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: !FindInMap [CloudFront, Policies, CachingDisabled]
+          OriginRequestPolicyId: !FindInMap [CloudFront, Policies, AllViewerExceptHostHeader]
+        # Hashed build assets and the mountain photos: cached at the edge.
+        CacheBehaviors:
+          - PathPattern: /assets/*
+            TargetOriginId: app
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: !FindInMap [CloudFront, Policies, CachingOptimized]
+          - PathPattern: /images/*
+            TargetOriginId: app
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            CachePolicyId: !FindInMap [CloudFront, Policies, CachingOptimized]
+
+  # ------------------------------------------------------------------ Values for the deploy script
+  InfraParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${AppName}/${EnvName}/infra'
+      Type: String
+      Description: Read by infra/ec2/deploy.sh on the instance (no secrets here)
+      Value: !Sub
+        - |-
+          IMAGE_REPO=${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageRepositoryName}
+          DB_HOST=${Database.Endpoint.Address}
+          DB_PORT=${Database.Endpoint.Port}
+          DB_NAME=rip
+          DB_SECRET_ARN=${DbSecret}
+          APP_SECRET_ARN=${AppSecret}
+          LOG_GROUP=${LogGroup}
+          PUBLIC_URL=https://${SiteHost}
+          BACKGROUND_SCRAPING=${BackgroundScraping}
+          HEADED_BROWSER=${HeadedBrowser}
+        - SiteHost: !If [HasDomain, !Ref DomainName, !GetAtt Distribution.DomainName]
+
+Outputs:
+  SiteUrl:
+    Description: The website (HTTPS)
+    Value: !If [HasDomain, !Sub 'https://${DomainName}', !Sub 'https://${Distribution.DomainName}']
+  CloudFrontDomain:
+    Description: Point your custom domain's CNAME here
+    Value: !GetAtt Distribution.DomainName
+  InstanceId:
+    Description: Connect with Session Manager (aws ssm start-session --target <id>)
+    Value: !Ref AppInstance
+  DatabaseEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+  AppSecretArn:
+    Description: Put your GEMINI_API_KEY in this secret (Secrets Manager, name starts with AppSecret-)
+    Value: !Ref AppSecret
+  DbSecretArn:
+    Description: Database user and password (name starts with DbSecret-)
+    Value: !Ref DbSecret
+  LogGroupName:
+    Value: !Ref LogGroup

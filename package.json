@@ -1,0 +1,32 @@
+{
+  "name": "review-intelligence-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Hotel review intelligence: a city-wide hotel database (Postgres + PostGIS) built by scraping Google Maps, Booking.com, Agoda and MakeMyTrip.",
+  "type": "module",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "build": "npm run build --workspace client",
+    "test": "npm test --workspace server",
+    "db:up": "docker compose up -d --wait db",
+    "db:down": "docker compose stop db",
+    "db:migrate": "npm run db:migrate --workspace server",
+    "worker": "npm run worker --workspace server",
+    "browsers:install": "npm exec -w server -- playwright install chromium",
+    "smoke": "npm run smoke --workspace server --",
+    "smoke:seed": "npm run smoke:seed --workspace server --",
+    "ai:check": "npm run ai:check --workspace server"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.6"
+  },
+  "engines": {
+    "node": ">=22.9"
+  }
+}
