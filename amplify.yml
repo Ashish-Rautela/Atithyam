@@ -13,6 +13,7 @@ frontend:
         - npm ci --workspace client --include-workspace-root=false --cache .npm --prefer-offline
     build:
       commands:
+        - env | grep -e VITE_ >> client/.env || true
         - npm run build --workspace client
   artifacts:
     # The build output is in client/dist (npm workspaces), not ./dist.
