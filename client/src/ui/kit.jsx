@@ -9,21 +9,30 @@ export { cx };
 /* ------------------------------------------------------------------ photo */
 
 /** The Himalaya photograph, responsive (webp sizes + jpg fallback), cropped with object-position. */
+// Background photo of the Garhwal Himalaya, served from Cloudinary in the best format and size for
+// each screen (AVIF/WebP, phone crops). To use another photo, upload it to Cloudinary and change
+// PHOTO_ID, or point PHOTO_BASE at another Cloudinary account.
+const PHOTO_BASE = 'https://res.cloudinary.com/dkjtln5qa/image/upload';
+const PHOTO_ID = 'atithyam/himalaya-hero.jpg';
+const photo = (t) => `${PHOTO_BASE}/${t}/${PHOTO_ID}`;
+const WIDE = [800, 1280, 1920, 2560].map((w) => `${photo(`f_auto,q_auto:good,c_limit,w_${w}`)} ${w}w`).join(', ');
+const TALL = [600, 900, 1200].map((w) => `${photo(`f_auto,q_auto:good,c_fill,g_auto,ar_3:4,w_${w}`)} ${w}w`).join(', ');
+
 export function MountainPhoto({ className = '', position = '50% 40%', alt = '', priority = false }) {
   return (
     <picture>
-      <source media="(max-width: 640px)" srcSet="/images/himalaya-portrait.webp" type="image/webp" />
-      <source srcSet="/images/himalaya-800.webp 800w, /images/himalaya-1400.webp 1400w, /images/himalaya-2400.webp 2400w" sizes="100vw" type="image/webp" />
+      <source media="(max-width: 640px)" srcSet={TALL} sizes="100vw" />
+      <source srcSet={WIDE} sizes="100vw" />
       <img
-        src="/images/himalaya-2400.jpg"
+        src={photo('f_auto,q_auto:good,c_limit,w_1920')}
         alt={alt}
         className={cx('h-full w-full object-cover', className)}
         style={{ objectPosition: position }}
         loading={priority ? 'eager' : 'lazy'}
         fetchPriority={priority ? 'high' : 'auto'}
         decoding="async"
-        width="2400"
-        height="1341"
+        width="2560"
+        height="1440"
       />
     </picture>
   );
