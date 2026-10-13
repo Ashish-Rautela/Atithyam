@@ -7,7 +7,11 @@ import { resolvePeers } from './benchmark.js';
 import { cachedView } from './viewCache.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const iso = (d) => new Date(d).toISOString().slice(0, 10);
+const iso = (d) => {
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const dt = new Date(d);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-01`;
+};
 
 /** Fill a continuous month axis (oldest → newest) from bucket rows. */
 function monthAxis(rows, maxMonths = 24) {
@@ -15,9 +19,12 @@ function monthAxis(rows, maxMonths = 24) {
   if (!months.length) return [];
   const out = [];
   const end = new Date(`${months.at(-1)}T00:00:00Z`);
+  end.setUTCDate(1);
   let d = new Date(`${months[0]}T00:00:00Z`);
+  d.setUTCDate(1);
   const minStart = new Date(end);
   minStart.setUTCMonth(minStart.getUTCMonth() - (maxMonths - 1));
+  minStart.setUTCDate(1);
   if (d < minStart) d = minStart;
   while (d <= end) {
     out.push(iso(d));

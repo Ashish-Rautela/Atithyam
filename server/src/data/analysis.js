@@ -203,7 +203,7 @@ export async function listingScores(hotelIds) {
 export async function monthlyAspect(hotelIds, aspect) {
   if (!hotelIds.length) return [];
   return many(
-    `SELECT hotel_id, date_trunc('month', published_at) AS month, count(*)::int AS n,
+    `SELECT hotel_id, to_char(date_trunc('month', published_at AT TIME ZONE 'UTC'), 'YYYY-MM-01') AS month, count(*)::int AS n,
             count(*) FILTER (WHERE sentiment = 1)::int AS pos, count(*) FILTER (WHERE sentiment = -1)::int AS neg
        FROM review_aspects WHERE hotel_id = ANY($1) AND aspect = $2 AND published_at IS NOT NULL
       GROUP BY hotel_id, month ORDER BY month`,
@@ -214,7 +214,7 @@ export async function monthlyAspect(hotelIds, aspect) {
 export async function monthlyRating(hotelIds) {
   if (!hotelIds.length) return [];
   return many(
-    `SELECT hotel_id, date_trunc('month', published_at) AS month, count(*)::int AS n,
+    `SELECT hotel_id, to_char(date_trunc('month', published_at AT TIME ZONE 'UTC'), 'YYYY-MM-01') AS month, count(*)::int AS n,
             avg(rating5)::float AS mean, coalesce(var_samp(rating5), 0)::float AS var
        FROM reviews WHERE hotel_id = ANY($1) AND published_at IS NOT NULL AND rating5 IS NOT NULL
       GROUP BY hotel_id, month ORDER BY month`,

@@ -1,0 +1,42 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            if [ ! -d ~/review-intelligence-platform ]; then
+              git clone https://github.com/${{ github.repository }}.git ~/review-intelligence-platform
+            fi
+            cd ~/review-intelligence-platform
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
+
+            # Write production environment variables from GitHub Secrets
+            cat << 'EOF' > .env
+            PORT=4000
+            POSTGRES_USER=${{ secrets.POSTGRES_USER || 'rip' }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'rip_prod_secret_password' }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB || 'rip' }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            AUTHOR_HASH_SALT=${{ secrets.AUTHOR_HASH_SALT || 'salt-for-reviewer-pseudonym' }}
+            CORS_ORIGIN=${{ secrets.CORS_ORIGIN || '*' }}
+            EOF
+
+            # Build and restart production containers
+            sudo docker compose -f docker-compose.prod.yml up -d --build --remove-orphans

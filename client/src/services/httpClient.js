@@ -9,10 +9,12 @@ export class ApiError extends Error {
   }
 }
 
+const API_BASE = (import.meta.env?.VITE_API_URL || '').replace(/\/+$/, '');
+
 async function request(method, path, body) {
   let res;
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(`${API_BASE}/api${path}`, {
       method,
       headers: body ? { 'content-type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,

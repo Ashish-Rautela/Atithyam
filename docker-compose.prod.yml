@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: rip-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rip_password_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-rip}
+    volumes:
+      - rip-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rip -d rip"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rip-api
+    ports:
+      - "80:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=postgres://${POSTGRES_USER:-rip}:${POSTGRES_PASSWORD:-rip_password_change_me}@db:5432/${POSTGRES_DB:-rip}
+      - DATABASE_SSL=disable
+      - AUTO_MIGRATE=true
+      - WORKER_MODE=embedded
+      - HEADLESS=true
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - AUTHOR_HASH_SALT=${AUTHOR_HASH_SALT:-rip-production-salt}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  rip-pgdata:

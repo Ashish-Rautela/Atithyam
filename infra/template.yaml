@@ -29,7 +29,7 @@ Parameters:
     AllowedValues: [db.t4g.micro, db.t4g.small, db.t4g.medium, db.t4g.large]
   DbEngineVersion:
     Type: String
-    Default: '16.13'
+    Default: '16.4'
     AllowedPattern: '^16\.[0-9]+$'
     Description: PostgreSQL 16 minor version (RDS retires old minors; pick a current one if creation fails).
   DbAllocatedStorage:
