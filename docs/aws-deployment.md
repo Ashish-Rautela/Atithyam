@@ -126,3 +126,24 @@ delete the stacks (below); the database is kept as a snapshot.
 2. Delete `rip-pipeline`.
 3. Empty and delete the retained artifact bucket (`rip-pipeline-artifactbucket-…`) in S3.
 Secrets Manager keeps deleted secrets for 30 days before removing them; they cost nothing in that time.
+
+## Hosting the website on Amplify (optional)
+
+Amplify Hosting can serve the **website only**. The API, the scraping worker and the database still
+need the EC2 + RDS stack above, because Amplify can't run a long-lived server, Chromium or Postgres.
+The CloudFront address from the stack already serves the website too, so Amplify is optional.
+Use it if you want Amplify's preview branches or its domain handling.
+
+1. The repo's `amplify.yml` builds `client/` and publishes `client/dist`.
+2. In the Amplify console → your app → **Hosting → Rewrites and redirects → Manage → JSON**, paste
+   this, with `<SiteUrl host>` replaced by the `SiteUrl` host from the `rip-prod` stack Outputs
+   (for example `d1234abcd.cloudfront.net`):
+   ```json
+   [
+     { "source": "/api/<*>", "target": "https://<SiteUrl host>/api/<*>", "status": "200", "condition": null },
+     { "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webp|webmanifest)$)([^.]+$)/>", "target": "/index.html", "status": "200", "condition": null }
+   ]
+   ```
+   The first rule forwards API calls to the backend. The second sends page URLs such as
+   `/seeding/1` to the app, so reloading a page doesn't show a 404.
+3. Redeploy the Amplify branch.

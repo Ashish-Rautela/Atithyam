@@ -1,0 +1,24 @@
+# AWS Amplify Hosting: builds and serves the website (client/) only.
+# The API, scraping worker and database cannot run on Amplify - they run on the EC2 + RDS stack
+# (infra/, see docs/aws-deployment.md). Amplify forwards /api/* to that backend through the
+# rewrite rules described in docs/aws-deployment.md ("Hosting the website on Amplify").
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 22 >/dev/null && nvm use 22
+        - node --version
+        # Only the website's packages - the server (Playwright, pg, ...) is not needed here.
+        - npm ci --workspace client --include-workspace-root=false --cache .npm --prefer-offline
+    build:
+      commands:
+        - npm run build --workspace client
+  artifacts:
+    # The build output is in client/dist (npm workspaces), not ./dist.
+    baseDirectory: client/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - .npm/**/*
