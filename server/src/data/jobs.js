@@ -274,7 +274,7 @@ export async function queueStats() {
 /** Test helper. */
 export async function _truncateAll() {
   await getPool().query(
-    'TRUNCATE jobs, compsets, reviews, listing_snapshots, platform_listings, discovery_areas, cluster_members, clusters, hotel_neighbors, hotels, cities RESTART IDENTITY CASCADE',
+    'TRUNCATE plan_periods, payments, user_hotels, sessions, users, jobs, compsets, reviews, listing_snapshots, platform_listings, discovery_areas, cluster_members, clusters, hotel_neighbors, hotels, cities RESTART IDENTITY CASCADE',
   );
 }
 

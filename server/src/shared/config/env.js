@@ -105,11 +105,41 @@ export const config = Object.freeze({
     }),
   }),
 
+  auth: Object.freeze({
+    // false only for tests and local experiments: every API route is then open, as before accounts existed.
+    required: bool('AUTH_REQUIRED', true),
+    allowSignup: bool('ALLOW_SIGNUP', true),
+    sessionDays: int('SESSION_DAYS', 30),
+    // 'auto' = Secure cookie whenever the request arrived over HTTPS (also behind CloudFront/ALB).
+    cookieSecure: str('COOKIE_SECURE', 'auto'),
+    // Comma-separated emails that are admins on sign-up/sign-in (full access, all hotels and cities).
+    adminEmails: str('ADMIN_EMAILS', '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
+    // Hotels an account without a paid plan may add.
+    freeHotelLimit: int('FREE_HOTEL_LIMIT', 1),
+  }),
+
+  billing: Object.freeze({
+    // Razorpay (test keys start with rzp_test_). Without both keys, payments are shown as unavailable.
+    keyId: str('RAZORPAY_KEY_ID', undefined),
+    keySecret: str('RAZORPAY_KEY_SECRET', undefined),
+    // Optional but recommended: Dashboard -> Webhooks, events payment.captured + order.paid.
+    webhookSecret: str('RAZORPAY_WEBHOOK_SECRET', undefined),
+    apiBase: str('RAZORPAY_API_BASE', 'https://api.razorpay.com/v1'),
+    currency: 'INR',
+    plans: Object.freeze({
+      pro: Object.freeze({ id: 'pro', name: 'Hotel Pro', pricePaise: int('PLAN_PRO_PRICE_INR', 999) * 100, days: int('PLAN_PRO_DAYS', 30) }),
+      destination: Object.freeze({ id: 'destination', name: 'Destination', pricePaise: int('PLAN_DESTINATION_PRICE_INR', 4999) * 100, days: int('PLAN_DESTINATION_DAYS', 30) }),
+    }),
+  }),
+
   authorHashSalt: str('AUTHOR_HASH_SALT', 'dev-salt'),
 });
 
 if (!['embedded', 'off'].includes(config.worker.mode)) {
   throw new Error(`WORKER_MODE must be "embedded" or "off", got "${config.worker.mode}"`);
+}
+if (!['auto', 'true', 'false'].includes(config.auth.cookieSecure)) {
+  throw new Error(`COOKIE_SECURE must be "auto", "true" or "false", got "${config.auth.cookieSecure}"`);
 }
 if (!['disable', 'require', 'verify'].includes(config.db.ssl)) {
   throw new Error(`DATABASE_SSL must be "disable", "require" or "verify", got "${config.db.ssl}"`);

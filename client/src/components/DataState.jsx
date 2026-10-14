@@ -1,4 +1,5 @@
 import { Button, EmptyState, Notice, Spinner, StatusBadge as KitStatusBadge, Stars as KitStars } from '../ui/kit.jsx';
+import { AccessError } from '../auth/PlanGate.jsx';
 
 /**
  * One component for the loading / error / empty states every data view needs.
@@ -13,6 +14,8 @@ export function DataState({ query, isEmpty, emptyTitle = 'Nothing here yet', emp
     );
   }
   if (query.isError) {
+    // Sign-in needed, not your hotel, or a paid plan needed: explain instead of "something went wrong".
+    if ([401, 402, 403].includes(query.error?.status)) return <AccessError error={query.error} />;
     return (
       <Notice tone="bad" title="Something went wrong." action={<Button size="sm" variant="ghost" icon="refresh" onClick={() => query.refetch()}>Try again</Button>}>
         {query.error?.message}

@@ -21,7 +21,8 @@
     "browsers:install": "npm exec -w server -- playwright install chromium",
     "smoke": "npm run smoke --workspace server --",
     "smoke:seed": "npm run smoke:seed --workspace server --",
-    "ai:check": "npm run ai:check --workspace server"
+    "ai:check": "npm run ai:check --workspace server",
+    "webhook:check": "npm run webhook:check --workspace server --"
   },
   "devDependencies": {
     "concurrently": "10.0.6"

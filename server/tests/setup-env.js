@@ -5,3 +5,5 @@ process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'silent';
 process.env.ENABLE_TRIPADVISOR = 'false';
 // Existing tests cover the AWS behaviour (refreshes, neighbourhood collection); laptop mode is tested explicitly.
 process.env.BACKGROUND_SCRAPING = 'true';
+// Accounts are tested in tests/db/auth-billing.test.js; the other suites test the API itself, open.
+process.env.AUTH_REQUIRED = 'false';

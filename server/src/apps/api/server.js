@@ -5,6 +5,8 @@ import { migrate } from '../../shared/db/migrate.js';
 import { closePool } from '../../shared/db/pool.js';
 import { closeBrowser } from '../../services/review-ingestion/browser/browserManager.js';
 import { Worker } from '../worker/worker.js';
+import { purgeExpiredSessions } from '../../data/accounts.js';
+import { billingEnabled, isTestMode } from '../../services/billing/razorpay.js';
 
 try {
   if (config.db.autoMigrate) await migrate();
@@ -19,7 +21,11 @@ await worker?.start();
 
 const server = createApp().listen(config.port, () => {
   logger.info({ port: config.port, worker: config.worker.mode, headless: config.scraping.headless }, 'API listening');
+  logger.info({ accounts: config.auth.required, payments: billingEnabled() ? (isTestMode() ? 'razorpay (test mode)' : 'razorpay (live)') : 'off (set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET)' }, 'Accounts and payments');
 });
+
+// Expired sign-in sessions are removed a few times a day.
+setInterval(() => purgeExpiredSessions().catch((err) => logger.warn({ err: err.message }, 'Session purge failed')), 6 * 3600_000).unref();
 
 let stopping = false;
 async function shutdown(signal) {

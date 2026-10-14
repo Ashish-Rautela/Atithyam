@@ -30,13 +30,22 @@ jobs:
             # Write production environment variables from GitHub Secrets
             cat << 'EOF' > .env
             PORT=4000
-            POSTGRES_USER=${{ secrets.POSTGRES_USER || 'rip' }}
+            POSTGRES_USER=rip
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'rip_prod_secret_password' }}
-            POSTGRES_DB=${{ secrets.POSTGRES_DB || 'rip' }}
+            POSTGRES_DB=rip
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             AUTHOR_HASH_SALT=${{ secrets.AUTHOR_HASH_SALT || 'salt-for-reviewer-pseudonym' }}
             CORS_ORIGIN=${{ secrets.CORS_ORIGIN || '*' }}
+            # Accounts
+            AUTH_REQUIRED=true
+            COOKIE_SECURE=${{ secrets.COOKIE_SECURE || 'true' }}
+            ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }}
+            # Razorpay payments
+            RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
+            RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
+            RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
             EOF
+            chmod 600 .env
 
             # Build and restart production containers
             sudo docker compose -f docker-compose.prod.yml up -d --build --remove-orphans

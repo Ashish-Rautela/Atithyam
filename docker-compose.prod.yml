@@ -20,6 +20,10 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: rip-api
+    # Everything the deploy workflow writes to .env (Razorpay keys, ADMIN_EMAILS, ...) reaches the app.
+    # The values under `environment:` below still win where both are set.
+    env_file:
+      - .env
     ports:
       - "4000:4000"
     environment:

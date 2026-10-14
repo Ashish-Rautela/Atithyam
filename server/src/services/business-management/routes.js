@@ -4,6 +4,15 @@ import { validateBody } from '../../shared/validation/validate.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import * as service from './businessService.js';
 import { ASPECT_KEYS } from '../analysis/taxonomy.js';
+import { config } from '../../shared/config/env.js';
+import { followHotel, followedHotelIds, followsHotel } from '../../data/accounts.js';
+import { hotelSlotsLeft } from '../auth/access.js';
+import { getHotel } from '../../data/hotels.js';
+import { rateLimiter } from '../auth/rateLimit.js';
+
+// Google Maps searches open a browser: 30 per hour per account is plenty for real use.
+const searchLimit = rateLimiter({ windowMs: 60 * 60_000, max: 30, key: (req) => `u${req.user?.userId ?? req.ip}` });
+const accountsOn = (req) => config.auth.required && req.user;
 
 const platformEnum = { enum: service.ALL_PLATFORMS };
 
@@ -47,7 +56,7 @@ const selectSchema = {
 export function businessRoutes() {
   const r = Router();
 
-  r.post('/search', validateBody(searchSchema), asyncRoute(async (req, res) => {
+  r.post('/search', searchLimit, validateBody(searchSchema), asyncRoute(async (req, res) => {
     res.json(await service.searchProperty(req.body));
   }));
 
@@ -58,12 +67,25 @@ export function businessRoutes() {
     res.json(await service.lookupHotels({ name, location: typeof req.query.location === 'string' ? req.query.location.slice(0, 120) : undefined }));
   }));
 
+  // "My hotels": an account sees the hotels it added (administrators see all).
   r.get('/businesses', asyncRoute(async (req, res) => {
-    res.json({ items: await service.listBusinesses() });
+    if (accountsOn(req) && req.access.tier !== 'admin') {
+      const ids = await followedHotelIds(req.user.userId);
+      const items = (await Promise.all(ids.map((id) => getHotel(id)))).filter(Boolean).reverse();
+      return res.json({ items });
+    }
+    return res.json({ items: await service.listBusinesses() });
   }));
 
   r.post('/businesses', validateBody(createSchema), asyncRoute(async (req, res) => {
+    if (accountsOn(req) && (await hotelSlotsLeft(req.user, req.access)) <= 0) {
+      const already = req.body.hotelId && (await followsHotel(req.user.userId, req.body.hotelId));
+      if (!already) {
+        throw AppError.planRequired('pro', `The free plan includes ${req.access.hotelLimit} hotel. Upgrade to Hotel Pro to add more hotels and compare them with competitors.`);
+      }
+    }
     const { business, job, reusedData } = await service.createBusiness(req.body);
+    if (accountsOn(req)) await followHotel(req.user.userId, business.bizId);
     res.status(202).json({ bizId: business.bizId, jobId: job?.jobId ?? null, reusedData });
   }));
 

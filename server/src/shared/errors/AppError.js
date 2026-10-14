@@ -19,6 +19,25 @@ export class AppError extends Error {
   static conflict(message) {
     return new AppError(409, 'CONFLICT', message);
   }
+
+  /** Not signed in (or the session expired). */
+  static unauthorized(message = 'Please sign in to continue.') {
+    return new AppError(401, 'AUTH_REQUIRED', message);
+  }
+
+  /** Signed in, but this belongs to someone else. */
+  static forbidden(message = 'You do not have access to this.') {
+    return new AppError(403, 'FORBIDDEN', message);
+  }
+
+  /** Signed in, but the feature needs a (higher) paid plan. details.requiredPlan = 'pro' | 'destination'. */
+  static planRequired(requiredPlan, message) {
+    return new AppError(402, 'PLAN_REQUIRED', message ?? 'This feature needs a paid plan.', { requiredPlan });
+  }
+
+  static tooManyRequests(message = 'Too many attempts. Please wait a few minutes and try again.') {
+    return new AppError(429, 'TOO_MANY_REQUESTS', message);
+  }
 }
 
 /**

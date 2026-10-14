@@ -9,6 +9,11 @@ import CityPage from './features/seeding/CityPage.jsx';
 import BenchmarkPage from './features/benchmark/BenchmarkPage.jsx';
 import DestinationPage from './features/destination/DestinationPage.jsx';
 import { AppHeader, AppFooter } from './ui/AppShell.jsx';
+import { RequireAuth, RequirePlan } from './auth/AuthContext.jsx';
+import LoginPage from './features/auth/LoginPage.jsx';
+import SignupPage from './features/auth/SignupPage.jsx';
+import AccountPage from './features/account/AccountPage.jsx';
+import PricingPage from './features/pricing/PricingPage.jsx';
 
 // The marketing homepage carries its own animation libraries and fonts; load them only there.
 const HomePage = lazy(() => import('./features/home/HomePage.jsx'));
@@ -24,6 +29,9 @@ function NotFound() {
 
 export default function App() {
   const { pathname } = useLocation();
+  // Sign-in screens are full-screen, without the site header.
+  if (pathname === '/login') return <LoginPage />;
+  if (pathname === '/signup') return <SignupPage />;
   if (pathname === '/') {
     return (
       <Suspense fallback={<div style={{ minHeight: '100vh', background: '#F7F4EC' }} />}>
@@ -37,13 +45,15 @@ export default function App() {
       <AppHeader />
       <div className="flex-1">
         <Routes>
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/business/:bizId" element={<BusinessPage />} />
-          <Route path="/business/:bizId/competitors" element={<CompetitorsPage />} />
-          <Route path="/seeding" element={<SeedingPage />} />
-          <Route path="/seeding/:cityId" element={<CityPage />} />
-          <Route path="/business/:bizId/benchmark" element={<BenchmarkPage />} />
-          <Route path="/seeding/:cityId/destination" element={<DestinationPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
+          <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
+          <Route path="/business/:bizId" element={<RequireAuth><BusinessPage /></RequireAuth>} />
+          <Route path="/business/:bizId/competitors" element={<RequireAuth><RequirePlan plan="pro" title="Competitors"><CompetitorsPage /></RequirePlan></RequireAuth>} />
+          <Route path="/business/:bizId/benchmark" element={<RequireAuth><RequirePlan plan="pro" title="Benchmark against the hotels next door"><BenchmarkPage /></RequirePlan></RequireAuth>} />
+          <Route path="/seeding" element={<RequireAuth><SeedingPage /></RequireAuth>} />
+          <Route path="/seeding/:cityId" element={<RequireAuth><CityPage /></RequireAuth>} />
+          <Route path="/seeding/:cityId/destination" element={<RequireAuth><RequirePlan plan="destination" title="Destination dashboard"><DestinationPage /></RequirePlan></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>

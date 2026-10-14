@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext.jsx';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AipanBorder, AipanMandala } from './aipan.jsx';
 import { Icon } from './icons.jsx';
@@ -24,7 +25,71 @@ const NAV = [
   { to: '/', label: 'Home', end: true, icon: 'mountain' },
   { to: '/search', label: 'My hotel', icon: 'hotel', match: (p) => p.startsWith('/search') || p.startsWith('/business') },
   { to: '/seeding', label: 'Destinations', icon: 'map', match: (p) => p.startsWith('/seeding') },
+  { to: '/pricing', label: 'Plans', icon: 'rupee' },
 ];
+
+/** Signed in: initials + plan, with a small menu. Signed out: a Sign in link. */
+function AccountMenu({ light }) {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const esc = (e) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+
+  if (auth.status !== 'signed-in') {
+    return (
+      <Link to={`/login?next=${encodeURIComponent(pathname === '/' ? '/search' : pathname)}`} className={cx('inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition', light ? 'text-white ring-1 ring-white/40 hover:bg-white/10' : 'text-pine ring-1 ring-line hover:bg-white')}>
+        <Icon name="user" className="size-4" /> Sign in
+      </Link>
+    );
+  }
+  const initials = auth.user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu" className={cx('inline-flex min-h-10 items-center gap-2 rounded-full py-1 pr-3 pl-1 text-sm font-bold transition', light ? 'bg-white/12 text-white ring-1 ring-white/30 hover:bg-white/20' : 'bg-white text-pine ring-1 ring-line hover:ring-forest/40')}>
+        <span className="grid size-8 place-items-center rounded-full bg-geru text-xs font-extrabold text-rice">{initials}</span>
+        <span className="hidden max-w-28 truncate xl:inline">{auth.user.name.split(' ')[0]}</span>
+        <span className={cx('rounded-full px-2 py-0.5 text-[0.68rem] font-extrabold tracking-wide uppercase', auth.tier === 'free' ? (light ? 'bg-white/15' : 'bg-mist text-forest') : 'bg-amber text-pine')}>{auth.planName}</span>
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 mt-2 w-64 overflow-hidden rounded-3xl bg-white p-2 text-pine shadow-lift ring-1 ring-line">
+          <div className="px-3 pt-2 pb-3">
+            <p className="truncate font-bold">{auth.user.name}</p>
+            <p className="truncate text-xs text-slate">{auth.user.email}</p>
+          </div>
+          <Link role="menuitem" to="/account" className="flex min-h-11 items-center gap-3 rounded-2xl px-3 font-semibold hover:bg-mist"><Icon name="user" className="size-4.5" /> My account</Link>
+          <Link role="menuitem" to="/pricing" className="flex min-h-11 items-center gap-3 rounded-2xl px-3 font-semibold hover:bg-mist"><Icon name="rupee" className="size-4.5" /> {auth.tier === 'free' ? 'Upgrade plan' : 'Plans & renewals'}</Link>
+          <button role="menuitem" type="button" onClick={async () => { await auth.logout(); navigate('/'); }} className="flex min-h-11 w-full items-center gap-3 rounded-2xl px-3 text-left font-semibold text-geru hover:bg-geru-50"><Icon name="logout" className="size-4.5" /> Sign out</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileAccount() {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  if (auth.status !== 'signed-in') {
+    return <Link to="/login" className="flex min-h-12 items-center gap-3 rounded-2xl px-4 font-bold text-pine hover:bg-mist"><Icon name="user" className="size-5" /> Sign in</Link>;
+  }
+  return (
+    <>
+      <Link to="/account" className="flex min-h-12 items-center gap-3 rounded-2xl px-4 font-bold text-pine hover:bg-mist">
+        <Icon name="user" className="size-5" /> {auth.user.name.split(' ')[0]} <span className="ml-auto rounded-full bg-amber px-2 py-0.5 text-[0.68rem] font-extrabold uppercase">{auth.planName}</span>
+      </Link>
+      <button type="button" onClick={async () => { await auth.logout(); navigate('/'); }} className="flex min-h-12 items-center gap-3 rounded-2xl px-4 text-left font-bold text-geru hover:bg-geru-50"><Icon name="logout" className="size-5" /> Sign out</button>
+    </>
+  );
+}
 
 /** Product header: transparent over the page photo, solid ivory once you scroll. */
 export function AppHeader({ overPhoto = true }) {
@@ -67,9 +132,12 @@ export function AppHeader({ overPhoto = true }) {
             );
           })}
         </nav>
-        <Link to="/search" className={cx('hidden min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition lg:inline-flex', light ? 'bg-rice text-pine hover:bg-white' : 'bg-geru text-rice hover:bg-geru-600')}>
-          <Icon name="key" className="size-4" /> Check in your hotel
-        </Link>
+        <div className="hidden items-center gap-2 md:flex">
+          <Link to="/search" className={cx('hidden min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition xl:inline-flex', light ? 'bg-rice text-pine hover:bg-white' : 'bg-geru text-rice hover:bg-geru-600')}>
+            <Icon name="key" className="size-4" /> Check in your hotel
+          </Link>
+          <AccountMenu light={light} />
+        </div>
         <button type="button" className={cx('grid size-11 place-items-center rounded-full md:hidden', light ? 'bg-white/15 text-white ring-1 ring-white/30' : 'bg-white text-pine ring-1 ring-line')} aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen((o) => !o)}>
           <Icon name={open ? 'close' : 'menu'} className="size-5" />
           <span className="sr-only">{open ? 'Close menu' : 'Open menu'}</span>
@@ -91,6 +159,7 @@ export function AppHeader({ overPhoto = true }) {
                 <Icon name={n.icon} className="size-5" /> {n.label}
               </NavLink>
             ))}
+            <MobileAccount />
             <Link to="/search" className="flex min-h-12 items-center gap-3 rounded-2xl bg-geru px-4 font-bold text-rice">
               <Icon name="key" className="size-5" /> Check in your hotel
             </Link>

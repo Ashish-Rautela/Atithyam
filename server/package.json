@@ -12,7 +12,8 @@
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
     "smoke": "node --env-file-if-exists=.env scripts/smoke.js",
     "smoke:seed": "node --env-file-if-exists=.env scripts/smoke-seed.js",
-    "ai:check": "node --env-file-if-exists=.env scripts/ai-check.js"
+    "ai:check": "node --env-file-if-exists=.env scripts/ai-check.js",
+    "webhook:check": "node --env-file-if-exists=.env scripts/webhook-check.js"
   },
   "dependencies": {
     "ajv": "8.20.0",

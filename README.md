@@ -97,6 +97,8 @@ both directions, with distance), `clusters` + `cluster_members` (DBSCAN, ~600 m)
 (what has been mapped, used to skip repeat searches), `platform_listings`, `listing_snapshots`
 (rating/count/price history), `reviews`, `compsets`, `jobs`.
 
+**Accounts and payments:** sign-in, plans and Razorpay checkout - see [docs/accounts-and-payments.md](docs/accounts-and-payments.md).
+
 **On AWS:** see [docs/aws-deployment.md](docs/aws-deployment.md). One CloudFormation stack
 (`infra/pipeline.yaml`) creates a CodePipeline; every push then tests, builds and deploys to EC2 +
 RDS PostgreSQL/PostGIS behind CloudFront (HTTPS).
