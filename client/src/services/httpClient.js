@@ -13,7 +13,7 @@ export class ApiError extends Error {
 export const AUTH_EVENT = 'rip:auth-required';
 export const PLAN_EVENT = 'rip:plan-required';
 
-const API_BASE = (import.meta.env?.VITE_API_URL || '').replace(/\/+$/, '');
+export const API_BASE = (import.meta.env?.VITE_API_URL || '').replace(/\/+$/, '');
 
 async function request(method, path, body) {
   let res;

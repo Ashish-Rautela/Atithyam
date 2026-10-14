@@ -1,7 +1,7 @@
 // One conversation per hotel, shared by every place the chat appears (report page and the floating
 // button), kept for the browser tab session. Answers stream in over server-sent events.
 import { useSyncExternalStore } from 'react';
-import { AUTH_EVENT, PLAN_EVENT } from '../../services/httpClient.js';
+import { API_BASE, AUTH_EVENT, PLAN_EVENT } from '../../services/httpClient.js';
 
 const conversations = new Map(); // bizId -> { messages, pending }
 const listeners = new Set();
@@ -91,9 +91,9 @@ export async function ask(bizId, question) {
   const ctrl = new AbortController();
   controllers.set(bizId, ctrl);
   try {
-    const res = await fetch(`/api/businesses/${bizId}/chat/stream`, {
+    const res = await fetch(`${API_BASE}/api/businesses/${bizId}/chat/stream`, {
       method: 'POST',
-      credentials: 'same-origin',
+      credentials: API_BASE ? 'include' : 'same-origin',
       headers: { 'content-type': 'application/json', 'x-requested-with': 'fetch' },
       body: JSON.stringify({ question: q, history }),
       signal: ctrl.signal,

@@ -63,12 +63,14 @@ export function analysisRoutes() {
   }));
   // Same, streamed as server-sent events: meta -> delta... -> done (or error).
   r.post('/businesses/:bizId/chat/stream', chatLimit, validateBody(chatSchema), async (req, res) => {
-    res.writeHead(200, {
+    res.status(200);
+    res.set({
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
       'X-Accel-Buffering': 'no',
       Connection: 'keep-alive',
     });
+    res.flushHeaders();
     const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     const abort = new AbortController();
     res.on('close', () => abort.abort());
