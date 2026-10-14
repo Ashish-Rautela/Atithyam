@@ -8,6 +8,7 @@ import { AipanCorner, AipanMandala } from '../../ui/aipan.jsx';
 import { Icon } from '../../ui/icons.jsx';
 import { DataState } from '../../components/DataState.jsx';
 import { openCheckout, inr } from './razorpay.js';
+import { safeNext } from '../auth/AuthLayout.jsx';
 
 const LOOK = {
   free: { icon: 'hotel', tone: 'bg-white text-ink ring-1 ring-line', for: 'To try it with your own hotel' },
@@ -20,6 +21,8 @@ export default function PricingPage() {
   const auth = useAuth();
   const [params] = useSearchParams();
   const wanted = params.get('plan');
+  // Where to go back after paying (e.g. the report that sent the owner here).
+  const next = params.get('next') ? safeNext(params.get('next'), null) : null;
   const plans = useQuery({ queryKey: ['plans'], queryFn: api.plans, staleTime: 300_000 });
   const [flow, setFlow] = useState({ step: 'idle' }); // idle | ordering | paying | verifying | done | error
   useEffect(() => { document.title = 'Plans — Review Intelligence'; }, []);
@@ -68,7 +71,7 @@ export default function PricingPage() {
                   An administrator needs to add the Razorpay keys (RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET) on the server. Free accounts work already.
                 </Notice>
               )}
-              {flow.step === 'done' && <Success flow={flow} />}
+              {flow.step === 'done' && <Success flow={flow} next={next} />}
               {flow.step === 'error' && <Notice tone="bad" title="The payment did not go through">{flow.message}</Notice>}
               {flow.note && flow.step === 'idle' && <Notice tone="info">{flow.note}</Notice>}
 
@@ -103,7 +106,7 @@ export default function PricingPage() {
                       </ul>
                       {until && <p className={cx('relative mt-4 text-sm font-bold', dark ? 'text-amber' : 'text-forest')}>Active until {fmtDate(until)}</p>}
                       <div className="relative mt-6">
-                        <PlanAction plan={plan} auth={auth} enabled={data.enabled} busy={busy} flow={flow} onBuy={buy} until={until} covered={covered} />
+                        <PlanAction plan={plan} auth={auth} enabled={data.enabled} busy={busy} flow={flow} onBuy={buy} until={until} covered={covered} next={next} />
                       </div>
                     </article>
                   );
@@ -130,10 +133,10 @@ export default function PricingPage() {
   );
 }
 
-function PlanAction({ plan, auth, enabled, busy, flow, onBuy, until, covered }) {
+function PlanAction({ plan, auth, enabled, busy, flow, onBuy, until, covered, next }) {
   const dark = plan.id !== 'free';
   if (auth.status !== 'signed-in') {
-    return <Button to={`/signup?next=${encodeURIComponent(`/pricing?plan=${plan.id}`)}`} variant={dark ? 'light' : 'primary'} icon="arrowRight" className="w-full">{plan.id === 'free' ? 'Create free account' : 'Create account to buy'}</Button>;
+    return <Button to={`/signup?next=${encodeURIComponent(`/pricing?plan=${plan.id}${next ? `&next=${encodeURIComponent(next)}` : ''}`)}`} variant={dark ? 'light' : 'primary'} icon="arrowRight" className="w-full">{plan.id === 'free' ? 'Create free account' : 'Create account to buy'}</Button>;
   }
   if (plan.id === 'free') {
     return <Button to="/search" variant="ghost" icon="arrowRight" className="w-full">Check in your hotel</Button>;
@@ -156,7 +159,7 @@ function PlanAction({ plan, auth, enabled, busy, flow, onBuy, until, covered }) 
   );
 }
 
-function Success({ flow }) {
+function Success({ flow, next }) {
   const name = PLAN_NAMES[flow.plan];
   return (
     <section className="relative overflow-hidden rounded-[2rem] bg-forest p-6 text-mist shadow-lift sm:p-8" role="status" aria-live="polite">
@@ -168,7 +171,9 @@ function Success({ flow }) {
         {flow.payment?.razorpayPaymentId && <> Razorpay reference: <code className="rounded bg-white/10 px-1.5">{flow.payment.razorpayPaymentId}</code></>}
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button to={flow.plan === 'destination' ? '/seeding' : '/search'} variant="light" icon="arrowRight">{flow.plan === 'destination' ? 'Open destinations' : 'Open my hotels'}</Button>
+        {next
+          ? <Button to={next} variant="light" icon="arrowRight">{next.endsWith('/report') ? 'Back to my full report' : 'Continue'}</Button>
+          : <Button to={flow.plan === 'destination' ? '/seeding' : '/search'} variant="light" icon="arrowRight">{flow.plan === 'destination' ? 'Open destinations' : 'Open my hotels'}</Button>}
         <Button to="/account" variant="glass">My account</Button>
       </div>
     </section>

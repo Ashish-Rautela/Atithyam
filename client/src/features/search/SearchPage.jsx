@@ -77,7 +77,7 @@ export default function SearchPage() {
       candidate.hotelId
         ? api.createBusiness({ hotelId: candidate.hotelId, location: location.trim() || undefined, maxReviews: Number(maxReviews) })
         : api.createBusiness({ name: candidate.name, location: location.trim(), googleUrl: candidate.url, maxReviews: Number(maxReviews) }),
-    onSuccess: ({ bizId }) => navigate(`/business/${bizId}/benchmark`),
+    onSuccess: ({ bizId }) => navigate(`/business/${bizId}/report`),
   });
   const dbMatches = debounced.name.length >= 3 ? lookup.data?.items ?? [] : [];
   const recent = useQuery({ queryKey: ['businesses'], queryFn: api.listBusinesses });
@@ -198,7 +198,7 @@ export default function SearchPage() {
                 {d.items.map((b) => (
                   <li key={b.bizId}>
                     <Link
-                      to={`/business/${b.bizId}/benchmark`}
+                      to={`/business/${b.bizId}/report`}
                       className="group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] bg-white p-5 pt-6 ring-1 ring-line shadow-card transition hover:-translate-y-0.5 hover:ring-forest/40"
                     >
                       <span aria-hidden="true" className="absolute top-4 right-5 size-3.5 rounded-full bg-ivory ring-2 ring-line" />

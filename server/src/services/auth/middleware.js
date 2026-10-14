@@ -85,8 +85,8 @@ export const POLICY = [
   { methods: ['GET'], path: /^\/hotels\/lookup$/, level: 'user' },
   { path: /^\/businesses$/, level: 'user' },
   // Hotel Pro: benchmark, competitors, trends, AI summaries, change log, neighbourhood re-collection.
-  { path: /^\/businesses\/[^/]+\/(benchmark|trends|summary|analyse|events|competitors|pipeline|reseed)(\/|$)/, level: 'pro', hotel: true },
-  // Overview, reviews, refresh, history, listing fixes.
+  { path: /^\/businesses\/[^/]+\/(benchmark|trends|summary|analyse|events|competitors|pipeline|reseed|chat)(\/|$)/, level: 'pro', hotel: true },
+  // Overview, the (free or full) report, reviews, refresh, history, listing fixes.
   { path: /^\/businesses\/[^/]+(\/|$)/, level: 'user', hotel: true },
 ];
 

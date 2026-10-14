@@ -139,6 +139,9 @@ describe.skipIf(!ok)('accounts, access and Razorpay payments', () => {
     expect(events.status).toBe(402);
     expect(events.body.detail.requiredPlan).toBe('pro');
     expect((await as('asha').get('/api/cities/1/destination')).body.detail.requiredPlan).toBe('destination');
+    // The report is free (its contents depend on the plan); the AI assistant is Hotel Pro.
+    expect((await as('asha').get(`/api/businesses/${hotelA}/report`)).status).toBe(200);
+    expect((await as('asha').post(`/api/businesses/${hotelA}/chat`).send({ question: 'How is breakfast?' })).body.detail?.requiredPlan).toBe('pro');
 
     // Ravi adds hotel B; Asha (free) cannot look at it.
     await as('ravi').post('/api/auth/register').send({ name: 'Ravi Rawat', email: 'ravi@example.com', password: 'kumaon-trek-77' });

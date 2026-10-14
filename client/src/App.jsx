@@ -14,6 +14,7 @@ import LoginPage from './features/auth/LoginPage.jsx';
 import SignupPage from './features/auth/SignupPage.jsx';
 import AccountPage from './features/account/AccountPage.jsx';
 import PricingPage from './features/pricing/PricingPage.jsx';
+import ReportPage from './features/report/ReportPage.jsx';
 
 // The marketing homepage carries its own animation libraries and fonts; load them only there.
 const HomePage = lazy(() => import('./features/home/HomePage.jsx'));
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
           <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
           <Route path="/business/:bizId" element={<RequireAuth><BusinessPage /></RequireAuth>} />
+          <Route path="/business/:bizId/report" element={<RequireAuth><ReportPage /></RequireAuth>} />
           <Route path="/business/:bizId/competitors" element={<RequireAuth><RequirePlan plan="pro" title="Competitors"><CompetitorsPage /></RequirePlan></RequireAuth>} />
           <Route path="/business/:bizId/benchmark" element={<RequireAuth><RequirePlan plan="pro" title="Benchmark against the hotels next door"><BenchmarkPage /></RequirePlan></RequireAuth>} />
           <Route path="/seeding" element={<RequireAuth><SeedingPage /></RequireAuth>} />

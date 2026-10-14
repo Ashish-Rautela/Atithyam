@@ -176,6 +176,48 @@ describe.skipIf(!ok)('competitive benchmark (synthetic fixtures, offline lexicon
     expect((await request(app).get(url)).body.cache.hit).toBe(false);
   });
 
+  it('hotel report: the full report has everything; the free one only counts what is locked', async () => {
+    // The pipeline counts a competitor as collected once its profile exists.
+    await query(`UPDATE hotels SET profile_status = 'complete' WHERE id = ANY($1)`, [[T, ...peers]]);
+    const { getReport } = await import('../../src/services/analysis/report.js');
+    const full = await getReport(T, { peers: 'radius', radiusKm: 3 }, { full: true });
+    expect(full.status).toBe('ready');
+    expect(full.scorecard).toMatchObject({ rating: 4.4, rank: 1, rankOf: 5 });
+    expect(full.topics.every((t) => !t.locked)).toBe(true);
+    expect(full.problems.some((p) => p.aspect === 'food')).toBe(true);
+    expect(full.actions.length).toBeGreaterThan(0);
+    expect(full.counts.problems).toBe(full.problems.length);
+
+    const free = await getReport(T, { peers: 'radius', radiusKm: 3 }, { full: false });
+    expect(free.scorecard).toEqual(full.scorecard); // the headline numbers are free
+    expect(free.competitors.map((c) => c.name)).toEqual(full.competitors.map((c) => c.name));
+    const open = free.topics.filter((t) => !t.locked);
+    expect(open.length).toBeLessThanOrEqual(2);
+    expect(free.topics.filter((t) => t.locked).every((t) => Object.keys(t).sort().join() === 'aspect,label,locked')).toBe(true);
+    expect(free.problems).toEqual([]);
+    expect(free.actions).toEqual([]);
+    expect(free.situation).toBeNull();
+    expect(free.counts).toEqual(full.counts); // ...but the counts say what is waiting
+    expect(free.strengths.length).toBeLessThanOrEqual(1);
+    // Nothing locked leaks: no complaint quote and no recommendation text anywhere in the payload.
+    const text = JSON.stringify(free);
+    expect(text).not.toMatch(/Breakfast was cold/i);
+    for (const a of full.actions) expect(text).not.toContain(a.title);
+  });
+
+  it('report and "ask your reviews" over the API (accounts off = full)', async () => {
+    const rep = await request(app).get(`/api/businesses/${T}/report?peers=radius&radiusKm=3`);
+    expect(rep.status).toBe(200);
+    expect(rep.body.full).toBe(true);
+    const chat = await request(app).post(`/api/businesses/${T}/chat?peers=radius&radiusKm=3`).send({ question: 'Why do guests complain about breakfast?' });
+    expect(chat.status).toBe(200);
+    expect(chat.body.method).toBe('data'); // no AI key in tests
+    expect(chat.body.topics).toContain('Food');
+    expect(chat.body.answer).toMatch(/Food/);
+    expect(chat.body.sources.length).toBeGreaterThan(0);
+    expect((await request(app).post(`/api/businesses/${T}/chat`).send({ question: 'x' })).status).toBe(400);
+  });
+
   it('analyses newly collected competitor reviews instantly when the benchmark is opened', async () => {
     await addReviews(peers[0], [['Breakfast was cold and the staff rude.', 2, daysAgo(2)]]);
     expect((await reviewsToAnalyse(peers[0])).length).toBe(1);

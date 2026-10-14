@@ -46,10 +46,16 @@ function AccountMenu({ light }) {
   }, [open]);
 
   if (auth.status !== 'signed-in') {
+    const next = encodeURIComponent(pathname === '/' || pathname.startsWith('/pricing') ? '/search' : pathname);
     return (
-      <Link to={`/login?next=${encodeURIComponent(pathname === '/' ? '/search' : pathname)}`} className={cx('inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition', light ? 'text-white ring-1 ring-white/40 hover:bg-white/10' : 'text-pine ring-1 ring-line hover:bg-white')}>
-        <Icon name="user" className="size-4" /> Sign in
-      </Link>
+      <span className="inline-flex items-center gap-2">
+        <Link to={`/login?next=${next}`} className={cx('inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition', light ? 'text-white ring-1 ring-white/40 hover:bg-white/10' : 'text-pine ring-1 ring-line hover:bg-white')}>
+          <Icon name="user" className="size-4" /> Sign in
+        </Link>
+        <Link to={`/signup?next=${next}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-geru px-4 text-sm font-bold text-rice transition hover:bg-geru-600">
+          Sign up free
+        </Link>
+      </span>
     );
   }
   const initials = auth.user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -75,11 +81,27 @@ function AccountMenu({ light }) {
   );
 }
 
+/** Shown to signed-in owners; signed-out visitors see Sign in / Sign up free instead. */
+function CheckInCta({ light }) {
+  const auth = useAuth();
+  if (auth.status !== 'signed-in') return null;
+  return (
+    <Link to="/search" className={cx('hidden min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition xl:inline-flex', light ? 'bg-rice text-pine hover:bg-white' : 'bg-geru text-rice hover:bg-geru-600')}>
+      <Icon name="key" className="size-4" /> Check in your hotel
+    </Link>
+  );
+}
+
 function MobileAccount() {
   const auth = useAuth();
   const navigate = useNavigate();
   if (auth.status !== 'signed-in') {
-    return <Link to="/login" className="flex min-h-12 items-center gap-3 rounded-2xl px-4 font-bold text-pine hover:bg-mist"><Icon name="user" className="size-5" /> Sign in</Link>;
+    return (
+      <>
+        <Link to="/login" className="flex min-h-12 items-center gap-3 rounded-2xl px-4 font-bold text-pine hover:bg-mist"><Icon name="user" className="size-5" /> Sign in</Link>
+        <Link to="/signup" className="flex min-h-12 items-center gap-3 rounded-2xl px-4 font-bold text-geru hover:bg-geru-50"><Icon name="key" className="size-5" /> Sign up free</Link>
+      </>
+    );
   }
   return (
     <>
@@ -133,9 +155,7 @@ export function AppHeader({ overPhoto = true }) {
           })}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
-          <Link to="/search" className={cx('hidden min-h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition xl:inline-flex', light ? 'bg-rice text-pine hover:bg-white' : 'bg-geru text-rice hover:bg-geru-600')}>
-            <Icon name="key" className="size-4" /> Check in your hotel
-          </Link>
+          <CheckInCta light={light} />
           <AccountMenu light={light} />
         </div>
         <button type="button" className={cx('grid size-11 place-items-center rounded-full md:hidden', light ? 'bg-white/15 text-white ring-1 ring-white/30' : 'bg-white text-pine ring-1 ring-line')} aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen((o) => !o)}>

@@ -70,6 +70,8 @@ export const api = {
   reseedCity: (cityId, payload) => request('POST', `/cities/${cityId}/reseed`, payload),
   pauseCity: (cityId) => request('POST', `/cities/${cityId}/pause`, {}),
   getQueue: () => request('GET', '/queue'),
+  getReport: (bizId) => request('GET', `/businesses/${bizId}/report`),
+  askReviews: (bizId, question, history) => request('POST', `/businesses/${bizId}/chat`, { question, history }),
   getPipeline: (bizId, peers) => request('GET', `/businesses/${bizId}/pipeline?${peerQs(peers)}`),
   getBenchmark: (bizId, peers) => request('GET', `/businesses/${bizId}/benchmark?${peerQs(peers)}`),
   getTrends: (bizId, measure, peers) => request('GET', `/businesses/${bizId}/trends?measure=${measure}&${peerQs(peers)}`),

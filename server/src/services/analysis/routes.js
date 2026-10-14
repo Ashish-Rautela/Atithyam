@@ -8,6 +8,28 @@ import { getTrends } from './trends.js';
 import { getDestination, destinationEvidenceCsv } from './destination.js';
 import { getSummary } from './summary.js';
 import * as service from './analysisService.js';
+import { getReport } from './report.js';
+import { askReviews } from './chat.js';
+import { config } from '../../shared/config/env.js';
+import { meets } from '../auth/access.js';
+import { rateLimiter } from '../auth/rateLimit.js';
+
+const chatSchema = {
+  type: 'object',
+  required: ['question'],
+  properties: {
+    question: { type: 'string', minLength: 2, maxLength: 500 },
+    history: {
+      type: 'array',
+      maxItems: 12,
+      items: { type: 'object', required: ['role', 'text'], properties: { role: { enum: ['user', 'assistant'] }, text: { type: 'string', maxLength: 2000 } } },
+    },
+  },
+};
+// AI answers cost money: 40 questions per hour per account.
+const chatLimit = rateLimiter({ windowMs: 60 * 60_000, max: 40, key: (req) => `chat${req.user?.userId ?? req.ip}` });
+/** Paid plan (or accounts switched off): the full report; otherwise the free one. */
+const fullReport = (req) => !config.auth.required || meets(req.access, 'pro');
 
 const eventSchema = {
   type: 'object',
@@ -29,6 +51,16 @@ function peerOpts(q) {
 
 export function analysisRoutes() {
   const r = Router();
+
+  // The owner's report: partial on the free plan, complete on Hotel Pro / Destination.
+  r.get('/businesses/:bizId/report', asyncRoute(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await getReport(req.params.bizId, peerOpts(req.query), { full: fullReport(req) }));
+  }));
+  // "Ask your reviews" (Hotel Pro): answers from this hotel's own data and guest quotes.
+  r.post('/businesses/:bizId/chat', chatLimit, validateBody(chatSchema), asyncRoute(async (req, res) => {
+    res.json(await askReviews(req.params.bizId, req.body.question, req.body.history ?? [], peerOpts(req.query)));
+  }));
 
   r.get('/businesses/:bizId/pipeline', asyncRoute(async (req, res) => res.json(await service.getPipeline(req.params.bizId, peerOpts(req.query)))));
   r.get('/businesses/:bizId/benchmark', asyncRoute(async (req, res) => {

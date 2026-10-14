@@ -57,7 +57,8 @@ export default function BusinessPage() {
         ) : undefined}
         actions={d0 && (
           <>
-            <Button to={`/business/${bizId}/benchmark`} variant="light" icon="arrowRight">Open benchmark</Button>
+            <Button to={`/business/${bizId}/report`} variant="light" icon="arrowRight">Your report</Button>
+            <Button to={`/business/${bizId}/benchmark`} variant="glass" iconLeft="chart">Deep-dive benchmark</Button>
             <Button to={`/business/${bizId}/competitors`} variant="glass" iconLeft="users">Nearby competitors</Button>
             <Button variant="glass" iconLeft="refresh" disabled={running || refresh.isPending} onClick={() => refresh.mutate()}>
               {running ? 'Collecting…' : 'Refresh all platforms'}
