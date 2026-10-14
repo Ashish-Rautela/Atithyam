@@ -13,7 +13,25 @@ export class ApiError extends Error {
 export const AUTH_EVENT = 'rip:auth-required';
 export const PLAN_EVENT = 'rip:plan-required';
 
-export const API_BASE = (import.meta.env?.VITE_API_URL || '').replace(/\/+$/, '');
+export function resolveApiBase() {
+  const env = import.meta.env?.VITE_API_URL;
+  if (env && typeof env === 'string' && env.trim() && !env.includes('undefined')) {
+    return env.replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location) {
+    const { hostname, protocol } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return '';
+    if (hostname.includes('atithyam.ashishrautela.in') || hostname.includes('athityam.ashishrautela.in')) {
+      return 'https://apiatithyam.ashishrautela.in';
+    }
+    if (hostname.startsWith('atithyam.') || hostname.startsWith('athityam.')) {
+      return `${protocol}//api${hostname}`;
+    }
+  }
+  return '';
+}
+
+export const API_BASE = resolveApiBase();
 
 async function request(method, path, body) {
   let res;

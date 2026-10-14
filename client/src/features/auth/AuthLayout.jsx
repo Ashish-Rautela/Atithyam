@@ -17,7 +17,7 @@ export function AuthLayout({ title, deva, subtitle, children, footer }) {
         <div className="absolute inset-0 -z-10"><MountainPhoto position="50% 35%" priority /></div>
         <div className="absolute inset-0 -z-10 bg-linear-to-b from-pine/30 via-pine/35 to-pine/90" />
         <div className="flex h-full flex-col justify-between p-10">
-          <Link to="/" className="self-start rounded-xl" aria-label="Athityam — home"><Brand light /></Link>
+          <Link to="/" className="self-start rounded-xl" aria-label="Atithyam — home"><Brand light /></Link>
           <div className="max-w-md text-white">
             <p className="font-deva text-2xl text-amber" lang="hi">अतिथि देवो भव</p>
             <p className="text-shadow-soft mt-3 font-serif text-4xl leading-tight">Every guest review across the hills, read and compared.</p>
@@ -33,7 +33,7 @@ export function AuthLayout({ title, deva, subtitle, children, footer }) {
 
       <section className="relative flex flex-col justify-center px-4 py-10 sm:px-10">
         <div className="mx-auto w-full max-w-md">
-          <Link to="/" className="mb-8 inline-block rounded-xl lg:hidden" aria-label="Athityam — home"><Brand /></Link>
+          <Link to="/" className="mb-8 inline-block rounded-xl lg:hidden" aria-label="Atithyam — home"><Brand /></Link>
           <div className="relative rounded-[2rem] bg-white p-6 shadow-card ring-1 ring-line sm:p-8">
             <AipanCorner className="pointer-events-none absolute top-3 right-3 size-10 opacity-20" rotate={90} />
             {deva && <p className="font-deva text-lg text-geru" lang="hi">{deva}</p>}

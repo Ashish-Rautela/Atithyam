@@ -13,7 +13,7 @@ export function Brand({ light = false, compact = false }) {
       <AipanMandala className="size-9 shrink-0 drop-shadow-sm" detail="simple" />
       <span className="leading-none">
         <span className={cx('block font-serif text-[1.15rem] font-semibold tracking-tight', light ? 'text-white' : 'text-pine')}>
-          Athityam <em className={cx('font-deva text-[0.95rem] font-normal', light ? 'text-glacier' : 'text-forest')} lang="sa">आतिथ्यम्</em>
+          Atithyam <em className={cx('font-deva text-[0.95rem] font-normal', light ? 'text-glacier' : 'text-forest')} lang="sa">आतिथ्यम्</em>
         </span>
         {!compact && <span className={cx('mt-1 block font-deva text-[0.8rem]', light ? 'text-amber' : 'text-geru')} lang="hi">उत्तराखण्ड · अतिथि देवो भव</span>}
       </span>
@@ -139,7 +139,7 @@ export function AppHeader({ overPhoto = true }) {
   return (
     <header className={cx('fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,backdrop-filter] duration-300', light ? 'bg-transparent' : 'bg-ivory/90 shadow-[0_1px_0_rgb(16_47_41/0.08)] backdrop-blur-xl')}>
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <Link to="/" aria-label="Athityam — home" className="rounded-xl">
+        <Link to="/" aria-label="Atithyam — home" className="rounded-xl">
           <Brand light={light} />
         </Link>
         <nav aria-label="Main" className={cx('hidden items-center gap-1 rounded-full p-1 md:flex', light ? 'bg-white/10 ring-1 ring-white/25 backdrop-blur-md' : 'bg-white ring-1 ring-line')}>

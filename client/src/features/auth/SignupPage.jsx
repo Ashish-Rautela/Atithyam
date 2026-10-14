@@ -25,7 +25,7 @@ export default function SignupPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => { document.title = 'Create account — Athityam'; }, []);
+  useEffect(() => { document.title = 'Create account — Atithyam'; }, []);
   if (status === 'signed-in' && !busy) return <Navigate to={next} replace />;
 
   const s = strength(form.password);
