@@ -13,12 +13,14 @@ export class ApiError extends Error {
 export const AUTH_EVENT = 'rip:auth-required';
 export const PLAN_EVENT = 'rip:plan-required';
 
+const API_BASE = (import.meta.env?.VITE_API_URL || '').replace(/\/+$/, '');
+
 async function request(method, path, body) {
   let res;
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(`${API_BASE}/api${path}`, {
       method,
-      credentials: 'same-origin',
+      credentials: API_BASE ? 'include' : 'same-origin',
       // The header proves the call comes from this app (the server rejects state changes without it).
       headers: { 'x-requested-with': 'fetch', ...(body ? { 'content-type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
