@@ -160,8 +160,104 @@ export async function generateJson({ system, prompt, schema, temperature = 0.1, 
   throw Object.assign(lastError ?? new Error('Gemini failed'), { transient: true });
 }
 
+// ------------------------------------------------------------------ streaming text (chat)
+let chatRecent = [];
+async function chatRateLimit() {
+  const now = Date.now();
+  chatRecent = chatRecent.filter((t) => now - t < 60_000);
+  if (chatRecent.length >= Math.max(1, config.ai.chatRpm)) {
+    throw new GeminiUnavailable('The assistant is busy right now - try again in a minute.');
+  }
+  chatRecent.push(now);
+}
+
+/**
+ * Streams a text answer. `contents` is the Gemini conversation ([{role:'user'|'model', parts:[{text}]}]).
+ * Calls onText(chunk) as text arrives; resolves { text, model }. Falls back across models only
+ * before the first chunk has been sent (a half-written answer is never restarted elsewhere).
+ */
+export async function streamText({ system, contents, temperature = 0.4, maxOutputTokens = 1024, onText, signal }) {
+  if (!geminiEnabled()) throw new GeminiUnavailable(config.ai.geminiKey ? 'Gemini quota exhausted for now.' : 'GEMINI_API_KEY is not set.');
+  await chatRateLimit();
+  const first = config.ai.chatModel ?? workingModel ?? config.ai.model;
+  const models = [...new Set([first, config.ai.model, ...config.ai.fallbackModels].filter(Boolean))];
+  let lastError = null;
+  for (const model of models) {
+    const body = {
+      systemInstruction: { parts: [{ text: system }] },
+      contents,
+      generationConfig: {
+        temperature,
+        maxOutputTokens,
+        // Chat answers come from given facts: little reasoning needed, so answers start sooner.
+        ...(/gemini-3/.test(model) ? { thinkingConfig: { thinkingLevel: 'low' } } : /2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      },
+    };
+    let res;
+    try {
+      res = await fetch(`${ENDPOINT}/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': config.ai.geminiKey },
+        body: JSON.stringify(body),
+        signal: signal ?? AbortSignal.timeout(config.ai.timeoutMs),
+      });
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      lastError = err;
+      continue;
+    }
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      const message = json.error?.message ?? `HTTP ${res.status}`;
+      lastError = new Error(message);
+      if (res.status === 401 || res.status === 403) throw new GeminiUnavailable(`Gemini rejected the request (${res.status}): ${message}`);
+      if (res.status === 429 && /per day|daily/i.test(message)) {
+        exhaustedUntil = Date.now() + 60 * 60 * 1000;
+        throw new GeminiUnavailable(`Gemini quota exhausted: ${message}`);
+      }
+      continue; // 404 model / 400 setting / 429 per-minute / 5xx: try the next model
+    }
+    // Server-sent events: lines "data: {json}" separated by blank lines.
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let text = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '');
+      let cut;
+      while ((cut = buffer.indexOf('\n\n')) >= 0) {
+        const event = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        for (const line of event.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          try {
+            const json = JSON.parse(line.slice(5).trim());
+            const chunk = json.candidates?.[0]?.content?.parts?.map((p) => (p.thought ? '' : p.text ?? '')).join('') ?? '';
+            if (chunk) {
+              text += chunk;
+              onText?.(chunk);
+            }
+          } catch {
+            // keep-alive or partial line: ignore
+          }
+        }
+      }
+    }
+    if (text) {
+      workingModel = model;
+      return { text, model };
+    }
+    lastError = new Error('Empty answer');
+  }
+  logger.warn({ err: lastError?.message }, 'Gemini chat failed on every model');
+  throw Object.assign(lastError ?? new Error('Gemini failed'), { transient: true });
+}
+
 /** For tests. */
 export function _resetGemini() {
+  chatRecent = [];
   recent = [];
   exhaustedUntil = 0;
   workingModel = null;

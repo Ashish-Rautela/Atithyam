@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { PageBody, PageHero, Button } from './ui/kit.jsx';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, matchPath } from 'react-router-dom';
 import SearchPage from './features/search/SearchPage.jsx';
 import BusinessPage from './features/business/BusinessPage.jsx';
 import CompetitorsPage from './features/competitors/CompetitorsPage.jsx';
@@ -15,6 +15,9 @@ import SignupPage from './features/auth/SignupPage.jsx';
 import AccountPage from './features/account/AccountPage.jsx';
 import PricingPage from './features/pricing/PricingPage.jsx';
 import ReportPage from './features/report/ReportPage.jsx';
+
+// Floating "Ask Front Desk" on hotel pages; its code loads only there.
+const ChatDock = lazy(() => import('./features/chat/ChatDock.jsx'));
 
 // The marketing homepage carries its own animation libraries and fonts; load them only there.
 const HomePage = lazy(() => import('./features/home/HomePage.jsx'));
@@ -40,6 +43,7 @@ export default function App() {
       </Suspense>
     );
   }
+  const hotelPage = matchPath('/business/:bizId/*', pathname) ?? matchPath('/business/:bizId', pathname);
   return (
     <div className="flex min-h-screen flex-col">
       <a href="#main" className="sr-only z-[60] rounded-full bg-pine px-4 py-2 text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3">Skip to content</a>
@@ -60,6 +64,7 @@ export default function App() {
         </Routes>
       </div>
       <AppFooter />
+      {hotelPage && <Suspense fallback={null}><ChatDock key={hotelPage.params.bizId} bizId={hotelPage.params.bizId} /></Suspense>}
     </div>
   );
 }

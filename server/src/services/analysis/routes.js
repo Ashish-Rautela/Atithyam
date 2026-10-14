@@ -61,6 +61,29 @@ export function analysisRoutes() {
   r.post('/businesses/:bizId/chat', chatLimit, validateBody(chatSchema), asyncRoute(async (req, res) => {
     res.json(await askReviews(req.params.bizId, req.body.question, req.body.history ?? [], peerOpts(req.query)));
   }));
+  // Same, streamed as server-sent events: meta -> delta... -> done (or error).
+  r.post('/businesses/:bizId/chat/stream', chatLimit, validateBody(chatSchema), async (req, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'X-Accel-Buffering': 'no',
+      Connection: 'keep-alive',
+    });
+    const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    const abort = new AbortController();
+    res.on('close', () => abort.abort());
+    try {
+      const out = await askReviews(req.params.bizId, req.body.question, req.body.history ?? [], peerOpts(req.query), {
+        signal: abort.signal,
+        onMeta: (m) => send('meta', m),
+        onDelta: (text) => send('delta', { text }),
+      });
+      send('done', { answer: out.answer, followUps: out.followUps, method: out.method, cached: out.cached });
+    } catch (err) {
+      if (!abort.signal.aborted) send('error', { message: err instanceof AppError ? err.message : 'Front Desk could not answer right now. Please try again.' });
+    }
+    res.end();
+  });
 
   r.get('/businesses/:bizId/pipeline', asyncRoute(async (req, res) => res.json(await service.getPipeline(req.params.bizId, peerOpts(req.query)))));
   r.get('/businesses/:bizId/benchmark', asyncRoute(async (req, res) => {

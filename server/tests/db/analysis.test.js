@@ -218,6 +218,25 @@ describe.skipIf(!ok)('competitive benchmark (synthetic fixtures, offline lexicon
     expect((await request(app).post(`/api/businesses/${T}/chat`).send({ question: 'x' })).status).toBe(400);
   });
 
+  it('Front Desk: streams answers, recognises competitors by name, and caches repeat questions', async () => {
+    const { _clearChatCaches } = await import('../../src/services/analysis/chat.js');
+    _clearChatCaches();
+    const res = await request(app).post(`/api/businesses/${T}/chat/stream?peers=radius&radiusKm=3`).send({ question: 'Why is Fixture Peer 1 doing better on breakfast?' });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/event-stream/);
+    const events = res.text.trim().split('\n\n').map((e) => ({ type: e.match(/^event: (\w+)/)[1], data: JSON.parse(e.split('\ndata: ')[1]) }));
+    expect(events.map((e) => e.type)).toEqual(['meta', 'delta', 'done']);
+    expect(events[0].data.topics).toEqual(expect.arrayContaining(['Food', 'Fixture Peer 1']));
+    expect(events[1].data.text).toMatch(/Fixture Peer 1/);
+    expect(events[2].data).toMatchObject({ method: 'data', cached: false });
+
+    const again = await request(app).post(`/api/businesses/${T}/chat?peers=radius&radiusKm=3`).send({ question: 'why is fixture peer 1 doing better on breakfast' });
+    expect(again.body.cached).toBe(true);
+    // With history it is a follow-up: never served from the cache.
+    const follow = await request(app).post(`/api/businesses/${T}/chat?peers=radius&radiusKm=3`).send({ question: 'Why is Fixture Peer 1 doing better on breakfast?', history: [{ role: 'user', text: 'hi' }, { role: 'assistant', text: 'hello' }] });
+    expect(follow.body.cached).toBe(false);
+  });
+
   it('analyses newly collected competitor reviews instantly when the benchmark is opened', async () => {
     await addReviews(peers[0], [['Breakfast was cold and the staff rude.', 2, daysAgo(2)]]);
     expect((await reviewsToAnalyse(peers[0])).length).toBe(1);

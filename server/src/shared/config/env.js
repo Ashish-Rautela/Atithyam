@@ -78,6 +78,9 @@ export const config = Object.freeze({
     fallbackModels: str('GEMINI_FALLBACK_MODELS', 'gemini-3.1-flash-lite,gemini-3-flash-preview,gemini-3.8-flash').split(',').map((m) => m.trim()).filter(Boolean),
     // Stay under the free-tier request limits; batches keep the number of requests small.
     rpm: int('GEMINI_RPM', 8),
+    // The chat assistant has its own small allowance so review analysis never makes owners wait.
+    chatRpm: int('GEMINI_CHAT_RPM', 10),
+    chatModel: str('GEMINI_CHAT_MODEL', undefined), // defaults to GEMINI_MODEL
     batchSize: int('GEMINI_BATCH_SIZE', 20),
     timeoutMs: int('GEMINI_TIMEOUT_MS', 60000),
     // Analysis jobs running at the same time (network-bound; the RPM limiter is shared).

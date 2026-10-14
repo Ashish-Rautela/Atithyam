@@ -9,7 +9,7 @@ import { Icon, AspectIcon } from '../../ui/icons.jsx';
 import { DataState } from '../../components/DataState.jsx';
 import PipelineBar from '../benchmark/PipelineBar.jsx';
 import { FakeCards, FakeText, LazySection, Locked, LockedValue } from './Locked.jsx';
-import { STARTERS } from './ReportChat.jsx';
+import { STARTERS } from '../chat/starters.js';
 
 // The assistant (and its code) loads only when a paid report scrolls to it.
 const ReportChat = lazy(() => import('./ReportChat.jsx'));
