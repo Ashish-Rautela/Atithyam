@@ -42,7 +42,7 @@ export default function ReportPage() {
   }, [introDone]);
   const data = report.data;
   useEffect(() => {
-    document.title = `${data?.hotel?.name ? `${data.hotel.name} - ` : ''}Guest-review report`;
+    document.title = `${data?.hotel?.name ? `${data.hotel.name} - ` : ''}Guest-review report — Athityam`;
   }, [data?.hotel?.name]);
 
   const unlock = `/pricing?plan=pro&next=${encodeURIComponent(`/business/${bizId}/report`)}`;

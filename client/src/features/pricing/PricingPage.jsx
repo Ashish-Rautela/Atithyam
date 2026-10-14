@@ -25,7 +25,7 @@ export default function PricingPage() {
   const next = params.get('next') ? safeNext(params.get('next'), null) : null;
   const plans = useQuery({ queryKey: ['plans'], queryFn: api.plans, staleTime: 300_000 });
   const [flow, setFlow] = useState({ step: 'idle' }); // idle | ordering | paying | verifying | done | error
-  useEffect(() => { document.title = 'Plans — Review Intelligence'; }, []);
+  useEffect(() => { document.title = 'Plans — Athityam'; }, []);
 
   const activeUntil = (planId) => auth.access?.plans?.find((p) => p.plan === planId)?.endsAt;
 

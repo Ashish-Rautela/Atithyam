@@ -6,7 +6,7 @@ import { AUTH_EVENT, PLAN_EVENT } from '../../services/httpClient.js';
 const conversations = new Map(); // bizId -> { messages, pending }
 const listeners = new Set();
 const controllers = new Map(); // bizId -> AbortController
-const EMPTY = { messages: [], pending: false };
+const EMPTY = { messages: [], pending: false, unread: 0 };
 const keyOf = (bizId) => `rip-chat:${bizId}`;
 let seq = 0;
 
@@ -15,7 +15,7 @@ function load(bizId) {
   let state = EMPTY;
   try {
     const raw = sessionStorage.getItem(keyOf(bizId));
-    if (raw) state = { messages: JSON.parse(raw).map((m) => ({ ...m, streaming: false })), pending: false };
+    if (raw) state = { messages: JSON.parse(raw).map((m) => ({ ...m, streaming: false })), pending: false, unread: 0 };
   } catch {
     // storage blocked or corrupt: start fresh
   }
@@ -84,8 +84,9 @@ export async function ask(bizId, question) {
   if (q.length < 2 || state.pending) return;
   const history = state.messages.filter((m) => !m.error && m.text).slice(-8).map((m) => ({ role: m.role, text: m.text.slice(0, 2000) }));
   update(bizId, (s) => ({
+    ...s,
     pending: true,
-    messages: [...s.messages, { id: ++seq, role: 'user', text: q }, { id: ++seq, role: 'assistant', text: '', streaming: true }],
+    messages: [...s.messages, { id: `${Date.now()}-${++seq}`, role: 'user', text: q, at: Date.now() }, { id: `${Date.now()}-${++seq}`, role: 'assistant', text: '', streaming: true, at: Date.now() }],
   }));
   const ctrl = new AbortController();
   controllers.set(bizId, ctrl);
@@ -115,8 +116,22 @@ export async function ask(bizId, question) {
     else patchLast(bizId, { text: err.message || 'Front Desk could not answer right now.', error: true, streaming: false });
   } finally {
     controllers.delete(bizId);
-    update(bizId, (s) => ({ ...s, pending: false }));
+    update(bizId, (s) => ({ ...s, pending: false, unread: watching.has(bizId) ? 0 : s.unread + 1 }));
   }
+}
+
+// Places that show the conversation register here, so an answer that lands while nobody is
+// looking can light up the "new reply" badge on the floating button.
+const watching = new Map(); // bizId -> count of open views
+export function watch(bizId) {
+  watching.set(bizId, (watching.get(bizId) ?? 0) + 1);
+  const s = load(bizId);
+  if (s.unread) save(bizId, { ...s, unread: 0 });
+  return () => {
+    const n = (watching.get(bizId) ?? 1) - 1;
+    if (n <= 0) watching.delete(bizId);
+    else watching.set(bizId, n);
+  };
 }
 
 export function stop(bizId) {

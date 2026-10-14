@@ -45,7 +45,7 @@ function HashScroll() {
  */
 export default function HomePage() {
   useEffect(() => {
-    document.title = 'Review Intelligence — guest reviews & hotel benchmarking for Uttarakhand';
+    document.title = 'Athityam — guest reviews & hotel benchmarking for Uttarakhand';
   }, []);
 
   return (

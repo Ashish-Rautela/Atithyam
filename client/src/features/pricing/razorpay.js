@@ -33,7 +33,7 @@ export async function openCheckout(order, { onFailure } = {}) {
       order_id: order.orderId,
       amount: order.amountPaise,
       currency: order.currency,
-      name: 'Review Intelligence',
+      name: 'Athityam',
       description: order.description,
       prefill: { name: order.prefill?.name, email: order.prefill?.email },
       notes: { plan: order.plan },

@@ -15,7 +15,7 @@ export default function AccountPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const { user, access } = auth;
-  useEffect(() => { document.title = 'My account — Review Intelligence'; }, []);
+  useEffect(() => { document.title = 'My account — Athityam'; }, []);
   if (!user) return null; // RequireAuth handles signed-out visitors
 
   const paidPlans = access?.plans ?? [];

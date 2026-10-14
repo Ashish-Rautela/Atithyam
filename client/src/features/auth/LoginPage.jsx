@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => { document.title = 'Sign in — Review Intelligence'; }, []);
+  useEffect(() => { document.title = 'Sign in — Athityam'; }, []);
   if (status === 'signed-in' && !busy) return <Navigate to={next} replace />;
 
   const submit = async (e) => {
