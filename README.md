@@ -1,237 +1,329 @@
-# Review Intelligence Platform
+<div align="center">
 
-A hotel database for whole towns and cities, built by scraping **Google Maps, Booking.com, Agoda and
-MakeMyTrip** (Tripadvisor optional), stored in **Postgres + PostGIS**.
+# 🏔️ Atithyam (आतिथ्यम्)
+### AI-Powered Hotel Review Intelligence & Competitive Benchmarking Platform
 
-- **Seeding:** enter city or town names (e.g. `Mussoorie`). Each one is found on Google Maps and
-  searched tile by tile for hotels, guest houses, resorts and homestays. Nearby hotels are linked
-  together and grouped into micro-markets. Then every hotel is collected from all platforms: profile,
-  ratings, category scores, prices and reviews.
-- **Owners get data instantly:** typing a hotel's name finds it in the database. If the hotel is new,
-  it is collected first, then its neighbourhood: hotels within 3 km are found (if that area was never
-  mapped) and every one of them is collected.
-- **Always fresh:** every hotel is re-collected about every **15 days**. Each hotel gets a random offset
-  of ±3 days (the "salt"), so a town seeded in one night does not come due on a single day. Any city
-  can be **re-seeded** whenever you want, and so can any owner's neighbourhood.
-- **Competitors** are listed straight from the database: distance, price ratio and the default
-- **Competitive benchmark (the analysis):** every review is classified by sentiment for 8 aspects: Food,
-  Room, Housekeeping, Staff, Location, Value for Money, Cleanliness and Booking Experience. Specific issues
-  are tagged too (hot water, breakfast, parking …). This works on English, Hindi and Hinglish text, using
-  Gemini when a key is set and offline rules otherwise. The owner then sees:
-  - their rating against the market's;
-  - each aspect against the competitor set, with **lead / lag / market-wide weakness**;
-  - property-specific problems vs conditions the whole market shares, each with quotes;
-  - trends with changepoints matched to logged events ("chef left");
-  - emerging issues and seasonal patterns;
-  - before/after results for fixes they logged.
-- **Destination view** for a Tourism Board: what visitors say about a whole town or micro-market. Issues
-  no single hotel controls (roads, parking, power, taxis) come first, with evidence and a CSV export.
-  like-for-like rules. Scoring and analysis are the next step.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-atithyam.ashishrautela.in-047857?style=for-the-badge&logo=googlechrome&logoColor=white)](https://atithyam.ashishrautela.in)
+[![API Status](https://img.shields.io/badge/API-apiatithyam.ashishrautela.in-0284c7?style=for-the-badge&logo=fastapi&logoColor=white)](https://apiatithyam.ashishrautela.in/api/health)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Ashish--Rautela%2FAtithyam-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Ashish-Rautela/Atithyam)
 
-## Requirements
+<br/>
 
-- **Node.js 22.9 or newer** (`node -v`)
-- **Postgres 16 with PostGIS.** The easiest way is Docker Desktop and `npm run db:up`. Without Docker,
-  install PostgreSQL 16 and add PostGIS with *Application Stack Builder*, then create the databases
-  `rip` and `rip_test` and set `DATABASE_URL` / `TEST_DATABASE_URL`.
-- Windows, macOS or Linux. The scrapers drive a real Chromium window on your machine.
+[![React](https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Node.js](https://img.shields.io/badge/Node.js_22+-43853D?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express_5-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL_16-316192?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![PostGIS](https://img.shields.io/badge/PostGIS-Spatial_Clustering-336791?style=flat-square&logo=gis&logoColor=white)](https://postgis.net/)
+[![Playwright](https://img.shields.io/badge/Playwright-1.64-2EAD33?style=flat-square&logo=playwright&logoColor=white)](https://playwright.dev/)
+[![Google Gemini](https://img.shields.io/badge/Google_Gemini-AI_Analysis-8E75C2?style=flat-square&logo=googlegemini&logoColor=white)](https://ai.google.dev/)
+[![AWS](https://img.shields.io/badge/AWS-EC2_%7C_RDS_%7C_CloudFront-232F3E?style=flat-square&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
 
-## Quick start (Windows PowerShell, macOS or Linux)
+<p align="center">
+  <b>Atithyam (आतिथ्यम्)</b> is an enterprise-grade hotel review intelligence and market benchmarking platform. It aggregates hotel listings and guest feedback across <b>Google Maps, Booking.com, Agoda, MakeMyTrip</b> (and Tripadvisor), parses multilingual sentiment (English, Hindi, and Hinglish), groups micro-markets using spatial GIS clustering (PostGIS + DBSCAN), and delivers actionable competitive insights to hotel owners and tourism boards.
+</p>
 
-```bash
-cd review-intelligence-platform
-npm install
-npm run browsers:install          # downloads Chromium for Playwright (once)
-copy .env.example server\.env     # macOS/Linux: cp .env.example server/.env
-npm run db:up                     # Postgres + PostGIS on :5432 (Docker); creates rip and rip_test
-npm run dev                       # API + background worker on :4000, UI on :5173
+🔗 **[Explore the Live Application](https://atithyam.ashishrautela.in)** · 📡 **[Live Backend API](https://apiatithyam.ashishrautela.in/api/health)** · 💬 **[Report Issues](https://github.com/Ashish-Rautela/Atithyam/issues)**
+
+---
+</div>
+
+## 🌐 Live Deployment
+
+| Resource | URL | Description |
+|---|---|---|
+| **Live Web App** | **[https://atithyam.ashishrautela.in](https://atithyam.ashishrautela.in)** | Full interactive frontend client (React 19 + Vite + Tailwind CSS v4) |
+| **Production API** | **[https://apiatithyam.ashishrautela.in](https://apiatithyam.ashishrautela.in)** | Express 5 API running on AWS EC2 behind CloudFront |
+| **API Health Check** | **[https://apiatithyam.ashishrautela.in/api/health](https://apiatithyam.ashishrautela.in/api/health)** | Live service and database health monitor |
+
+---
+
+## ✨ Key Capabilities
+
+### 1. 🗺️ Automated Spatial Seeding & Micro-Markets
+- **Tile-by-Tile Map Crawling:** Seed entire towns or valleys (e.g., *Mussoorie, Nainital, Rishikesh*). The crawler automatically searches geographic bounding boxes tile-by-tile on Google Maps for hotels, resorts, homestays, and boutique lodges.
+- **PostGIS Spatial Graphs & DBSCAN:** Automatically builds a 5 km neighbour connectivity graph and groups properties into true walking-distance micro-markets (~600 m radius clusters via DBSCAN).
+- **Auto-Refresh with Jitter:** Periodic background re-collection every **15 days** with a ±3 day random salt, avoiding thundering herd queries while keeping pricing, ratings, and fresh reviews up-to-date.
+
+### 2. 🤖 Multilingual Aspect Sentiment (Gemini AI + Rule Fallback)
+- **8 Core Hospitality Dimensions:** Classifies every guest review into sentiment scores across:
+  - 🍽️ **Food & Dining**
+  - 🛏️ **Room Comfort**
+  - 🧹 **Housekeeping**
+  - 🤝 **Staff & Service**
+  - 📍 **Location & Accessibility**
+  - 💰 **Value for Money**
+  - ✨ **Cleanliness**
+  - 📲 **Booking & Check-in Experience**
+- **Trilingual Comprehension:** Full support for **English**, **Hindi (हिंदी)**, and colloquial **Hinglish** (e.g., *“Room ka view mast tha but hot water ki problem aayi”*).
+- **Dual-Engine AI Pipeline:** Powered by Google Gemini with automatic fallback to high-speed offline deterministic keyword rules if an API key is not configured.
+- **Ask Front Desk (AI Chatbot):** Integrated conversational interface powered by streaming Gemini LLM to chat directly with your review repository (e.g., *“What do guests complain most about on weekends?”*).
+
+### 3. 📊 Competitive Benchmarking for Hotel Owners
+- **Instant Claim & Auto-Discovery:** Search your hotel name to find it in the spatial database. If unmapped, Atithyam seeds the property and automatically maps its immediate 3 km neighbourhood.
+- **Dynamic Comp-Sets:** Filters competitors by distance, star class, lodging tier, and real-time Google price ratios (`Much Cheaper`, `Similar 0.8–1.25×`, `Pricier`).
+- **Lead / Lag / Market Weakness:** Highlights whether negative feedback is unique to your hotel (e.g., poor room service) or a town-wide structural bottleneck (e.g., seasonal water shortages or traffic jams).
+- **Trend & Event Correlation:** Tracks monthly sentiment trajectory alongside operational milestones logged by management (e.g., *“New Head Chef hired in October”*).
+
+### 4. 🏛️ Destination View for Tourism Boards
+- Aggregated intelligence for district administrations and tourism departments.
+- Identifies destination-level civic grievances that individual properties cannot solve: road connectivity, parking shortages, municipal electricity/water fluctuations, and taxi overcharging.
+- One-click **CSV evidence export** for official planning and infrastructure reviews.
+
+### 5. 💳 Accounts, Paywall & Razorpay Integration
+- Tiered subscription tiers (Free Explorer vs. Premium Property Owner / Multi-Property).
+- Fully integrated Razorpay checkout modal with webhook verification and payment history ledger.
+
+---
+
+## 🏛️ System Architecture
+
+```
+                                  ┌──────────────────────────────────────────────┐
+                                  │             React 19 + Vite UI               │
+                                  │      (atithyam.ashishrautela.in)             │
+                                  └──────────────────────┬───────────────────────┘
+                                                         │ HTTPS / REST
+                                                         ▼
+                                  ┌──────────────────────────────────────────────┐
+                                  │              Express 5 API Gateway           │
+                                  │     (apiatithyam.ashishrautela.in)           │
+                                  └───────────┬──────────────────────┬───────────┘
+                                              │                      │
+                       Reads / Enqueue Jobs   ▼                      ▼  Background Claims
+                      ┌───────────────────────────────┐     ┌────────────────────────────┐
+                      │    PostgreSQL 16 + PostGIS    │◄────│     Worker Process(es)     │
+                      │  - cities & discovery_areas   │     │  (FOR UPDATE SKIP LOCKED)  │
+                      │  - hotels & hotel_neighbors   │     ├────────────────────────────┤
+                      │  - DBSCAN clusters            │     │ • seed_city                │
+                      │  - platform_listings & snaps  │     │ • discover_area            │
+                      │  - reviews & aspect tags      │     │ • profile / scrape         │
+                      │  - compsets & jobs queue      │     │ • 15-day refresh scheduler │
+                      └───────────────────────────────┘     └──────────────┬─────────────┘
+                                                                           │
+                                    ┌──────────────────────────────────────┴──────────────────────────────────────┐
+                                    │                                                                             │
+                                    ▼                                                                             ▼
+                     ┌─────────────────────────────┐                                               ┌─────────────────────────────┐
+                     │    Playwright (Chromium)    │                                               │       Google Gemini AI      │
+                     │  • Google Maps Places API   │                                               │  • 8-Aspect Sentiment       │
+                     │  • Agoda Review API         │                                               │  • Hinglish / Hindi NLP     │
+                     │  • Booking.com JSON-LD      │                                               │  • Front Desk Chatbot       │
+                     │  • MakeMyTrip Ingestion     │                                               │  • Executive Summaries      │
+                     └─────────────────────────────┘                                               └─────────────────────────────┘
 ```
 
-Tables are created automatically on start (`server/migrations/*.sql`).
+---
 
-1. **Seed a town:** open http://localhost:5173/seeding, enter `Mussoorie` and click *Start seeding*.
-   The *Places* table shows the progress: map tiles searched, hotels found, hotels collected, reviews and
-   clusters. Click the town to see its micro-markets and each hotel's data status.
-2. **Owner view:** on *My property*, type a hotel name. Hotels already in the database appear
-   instantly under **Already in our database**; *Search Google Maps* is for hotels that are not there yet.
-   Confirm *This is my property* and you land on the **competitive benchmark**. Its progress bar shows four
-   steps: your data, then competitors found, then competitors collected, then reviews analysed. The
-   benchmark fills in as each step finishes.
-3. **Destination view:** *Destinations & seeding*, then a town, then *Destination view →*.
+## 🔌 Multi-Platform Ingestion Engine
 
-**AI analysis (optional but recommended):** put your Gemini key in `server/.env` as `GEMINI_API_KEY=…`,
-restart, and run `npm run ai:check`. Without a key everything still works with offline keyword rules,
-and the page says which method was used. To redo reviews the rules already analysed with AI, use the
-*Re-analyse with AI* button on the benchmark.
-
-A Chromium window opens while background jobs run. Leave it alone. Jobs only run while the app is
-running. If you stop it, unfinished jobs go back to the queue and continue on the next start.
-
-### Check things live without the UI
-
-```bash
-npm run smoke:seed -- "Mussoorie"                 # find the town + 2 map tiles, build graph and clusters
-npm run smoke:seed -- "Mussoorie" --tiles 0       # the whole town (no hotel collection)
-npm run smoke -- "JW Marriott Walnut Grove" "Mussoorie" --max 20   # collect one hotel now
-```
-
-These are the real proof that the integrations work. The unit tests only prove the logic.
-
-## How it works
-
-```
-React (Vite) ──/api──► Express API ──► Postgres + PostGIS  ◄── Worker(s): claim jobs (FOR UPDATE SKIP LOCKED)
-                       (reads only;      cities, hotels,          │  seed_city:     resolve town → map tiles → hotels
-                        queues jobs)     hotel_neighbors,         │                 → neighbours + clusters → queue hotels
-                                         clusters, listings,      │  discover_area: map search around one hotel
-                                         snapshots, reviews,      │  profile:       Google → (Agoda→Booking ‖ MakeMyTrip)
-                                         jobs                     │  scheduler:     15-day refresh ± jitter, stuck-job recovery
-```
-
-**Job priorities** (higher first): owner's own hotel 100 · map search around an owner 90 · selected
-competitors 80 · other neighbours 60 · city map search 50 · city hotels 40 · scheduled refresh 20.
-A hotel never has two collections queued at once.
-
-**Tables:** `cities`, `hotels` (one row per Google place), `hotel_neighbors` (every pair within 5 km,
-both directions, with distance), `clusters` + `cluster_members` (DBSCAN, ~600 m), `discovery_areas`
-(what has been mapped, used to skip repeat searches), `platform_listings`, `listing_snapshots`
-(rating/count/price history), `reviews`, `compsets`, `jobs`.
-
-**Accounts and payments:** sign-in, plans and Razorpay checkout - see [docs/accounts-and-payments.md](docs/accounts-and-payments.md).
-
-**On AWS:** see [docs/aws-deployment.md](docs/aws-deployment.md). One CloudFormation stack
-(`infra/pipeline.yaml`) creates a CodePipeline; every push then tests, builds and deploys to EC2 +
-RDS PostgreSQL/PostGIS behind CloudFront (HTTPS).
-
-| Platform | Profile | Reviews | Notes |
+| Platform | Profile Data Extracted | Review Data Extracted | Mechanism & Notes |
 |---|---|---|---|
-| Google Maps | place page: rating, count, address, phone, website, star class, coords, histogram, **Prices tab** | Reviews tab | Signed-out visitors only see a handful of reviews. The tool does not sign in. |
-| Agoda | review API (`HotelReviews`) | review API (`ReviewComments`), most recent first | Called from inside an agoda.com page with the site's own cookies |
-| Booking.com | hotel page JSON-LD, sub-scores, facilities, coordinates | **via Agoda's review API (provider 3038)**; otherwise the featured reviews | Booking's old `reviewlist` endpoint now returns 404 |
-| MakeMyTrip | hotel-details page: rating, distribution, category scores, MMT's AI summary | review list with pagination | No review ids or posting dates, so de-duplication uses a content fingerprint |
-| Tripadvisor | JSON-LD (rating, count, geo, amenities, price band) | review cards, next-page links | Uses strong bot protection, so expect `BLOCKED` sometimes |
+| **Google Maps** | Place details, star class, rating, coordinates, phone, website, **Prices tab** | Reviews tab sample | Direct Chromium navigation. Google Price tab links provide cross-platform OTA IDs (`hid`, `topHtlId`). |
+| **Agoda** | Hotel profile, facilities, sub-scores | Direct review API (`ReviewComments`) | Authenticated via session cookies extracted within browser sandbox. |
+| **Booking.com** | JSON-LD schema, facilities, sub-scores | Agoda provider endpoint (provider 3038) | Bypasses deprecation of Booking's legacy endpoints via cross-network data feeds. |
+| **MakeMyTrip** | Category scores, MMT AI summary, star class | Paginated guest review cards | Content fingerprinting used for de-duplication in the absence of explicit review IDs. |
+| **Tripadvisor** | JSON-LD metadata, amenities, price tier | Review cards & pagination | Public HTML extraction with rate-limiting backoff. |
 
-**Every platform ends with an explicit outcome:** `SUCCESS`, `SUCCESS_NO_REVIEWS`,
-`NEEDS_CONFIRMATION`, `NOT_FOUND`, `BLOCKED`, `LAYOUT_CHANGED`, `TIMEOUT`, `NETWORK_ERROR`,
-`FAILED`, `DISABLED`. A failure is never shown as "no reviews". When a page doesn't look as
-expected, its HTML is saved to `server/data/raw/<platform>/` for debugging.
+> **Audit Outcomes:** Every platform run produces an explicit status (`SUCCESS`, `SUCCESS_NO_REVIEWS`, `NEEDS_CONFIRMATION`, `NOT_FOUND`, `BLOCKED`, `LAYOUT_CHANGED`, `TIMEOUT`, `DISABLED`). Failed runs archive raw DOM snapshots in `server/data/raw/<platform>/` for inspection.
 
-**Wrong match?** Each platform card lists the other candidates found and has a box to paste the
-correct URL. That re-runs just that platform.
+---
 
-**Duplicates:** `reviewId` is a hash of the platform's own review id, or of a content fingerprint
-when the platform has none. Re-running overwrites rather than duplicates, and edited reviews get
-`revision + 1`.
+## 🛠️ Technology Stack
 
-## Competitors: how they are found and chosen
+### Frontend Client
+- **Framework:** [React 19](https://react.dev/) + [Vite 8](https://vitejs.dev/)
+- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/) with custom Himalayan/Aipan cultural design tokens (`#1D5746` Pine, `#B85D19` Geru, `#F7F4EE` Rice)
+- **Animations & Smooth Scroll:** [Framer Motion](https://www.framer.com/motion/), [GSAP](https://greensock.com/), [Lenis Smooth Scroll](https://lenis.darkroom.engineering/)
+- **Typography:** Fraunces (Editorial serif), Manrope (Modern grotesque), Tiro Devanagari Hindi
+- **State & Data Fetching:** [@tanstack/react-query](https://tanstack.com/query)
 
-1. **Discovery (Google Maps)** — only when the area is not in the database yet: several searches around your pin ("hotels" at your location and 4 points
-   around it, plus "guest house", "resort", "homestay" at your location), because signed-out Google shows
-   only ~8–10 results per search. Results are de-duplicated by Google place id.
-2. **Tagging, no scoring:** distance from you, star class or lodging type, Google rating and review count,
-   the price Google shows in the same result list (same dates and guests for everyone), and the price
-   ratio against yours (`Much cheaper` < 0.5×, `Cheaper`, `Similar` 0.8–1.25×, `Pricier`, `Much pricier` > 2×).
-3. **Default selection** (editable): within the radius (default 3 km), price 0.5–2× yours or unknown,
-   at least 20 Google reviews, nearest 10. A ₹1,500 hotel and a ₹15,000 hotel are never paired by
-   default, but you can add any place by hand or widen the filters.
-4. **Collection:** competitors come from the database; hotels with fresh data (inside their 15-day
-   window) are used as they are, the rest are queued. Every hotel is stored once, keyed by its Google
-   place id, so a hotel that is both a competitor and someone's own property is scraped once.
+### Backend & Ingestion
+- **Runtime & Server:** [Node.js 22+](https://nodejs.org/) (ES Modules) & [Express 5](https://expressjs.com/)
+- **Database & Spatial Engine:** [PostgreSQL 16](https://www.postgresql.org/) with [PostGIS extension](https://postgis.net/) (DBSCAN, ST_DWithin, ST_DistanceSphere)
+- **Scraping Engine:** [Playwright 1.64](https://playwright.dev/) with Chromium
+- **Validation & Logging:** [Ajv](https://ajv.js.org/) (JSON Schema validation), [Pino](https://github.com/pinojs/pino) + `pino-pretty`
 
-**Matching the same hotel on each OTA:** Google's *Prices* tab links straight to the hotel on
-MakeMyTrip (`topHtlId`), Agoda (`hid`), Booking.com and Tripadvisor. Those links are used first, so
-no name matching is needed. Name + distance search is only a fallback (MakeMyTrip has no fallback; paste
-its URL if Google lists no MakeMyTrip price).
+### AI & Language Understanding
+- **LLM Engine:** [Google Gemini API](https://ai.google.dev/) (`@google/genai`) for multilingual extraction, topic classification, and streaming conversational chat
+- **Deterministic Engine:** Built-in offline regex and vocabulary matcher for zero-dependency execution
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/businesses/:id/competitors` | candidates, selection, collected competitors with per-platform status |
-| `POST /api/businesses/:id/competitors/discover` `{radiusKm, force}` | `{covered: true}` if the area is already mapped; otherwise (or with `force`) queue a map search |
-| `PUT /api/businesses/:id/competitors/selection` `{placeIds}` | save the chosen set |
-| `POST /api/businesses/:id/competitors/collect` `{maxReviews, force}` | queue collection for chosen competitors without fresh data |
+### Cloud & Infrastructure
+- **Hosting:** AWS EC2 (`t3.medium`, Amazon Linux 2023 with Docker Compose)
+- **CDN & Edge:** AWS CloudFront (HTTPS termination, static asset caching)
+- **Managed DB:** AWS RDS PostgreSQL 16 with PostGIS
+- **CI/CD:** AWS CodePipeline + CodeBuild + CloudFormation (`infra/pipeline.yaml`)
+- **Payments:** Razorpay Payments Gateway integration
 
-| Seeding endpoint | Purpose |
-|---|---|
-| `POST /api/cities` `{names[], kind, radiusKm?, maxReviews?, enrich?}` | add towns/cities and queue a seeding run each |
-| `GET /api/cities`, `GET /api/cities/:id?cluster=` | progress, stats, micro-markets, hotels |
-| `POST /api/cities/:id/reseed` `{mode: refresh\|full\|resume}` | map again + collect due hotels / re-collect all / continue a paused run |
-| `POST /api/cities/:id/pause` | cancel queued work; a running map search stops after its tile |
-| `GET /api/hotels/lookup?name=&location=` | instant fuzzy search in the database |
-| `POST /api/businesses` `{hotelId}` or `{name, googleUrl}` | claim a hotel; onboards its neighbourhood |
-| `POST /api/businesses/:id/reseed` | search around the hotel again and re-collect every neighbour |
-| `GET /api/businesses/:id/history` | rating / review-count / price snapshots over time |
-| `GET /api/queue` | running and next jobs |
+---
 
-| Analysis endpoint (`?peers=compset\|cluster\|radius&radiusKm=3`) | Purpose |
-|---|---|
-| `GET /api/businesses/:id/pipeline` | progress: own data → competitors → collected → analysed |
-| `GET /api/businesses/:id/benchmark` | rating vs market, 8 aspects (lead/lag/market-wide), issues per 100 reviews, platform category scores, heatmap, findings with quotes |
-| `GET /api/businesses/:id/trends?measure=rating\|food\|…` | monthly you vs market, changepoint + related events, emerging issues (time to detect), seasonal patterns, intervention before/after |
-| `GET\|POST /api/businesses/:id/summary` | written summary (Gemini, or template without a key); POST regenerates |
-| `POST /api/businesses/:id/analyse` `{upgrade}` | analyse new reviews now (`upgrade`: redo rule-analysed reviews with AI) |
-| `GET\|POST\|DELETE /api/businesses/:id/events` | operator events / interventions shown on the trend |
-| `GET /api/cities/:id/destination?cluster=` | destination view; `/destination/summary`, `/destination/evidence.csv` |
+## 🚀 Quick Start Guide
 
-## Guardrails (by design)
+### Prerequisites
+1. **Node.js 22.9 or newer** (`node -v`)
+2. **Docker Desktop** (for running PostgreSQL 16 + PostGIS)
+3. *(Optional)* **Google Gemini API Key** for AI analysis (`GEMINI_API_KEY`)
 
-- Only logged-out, public pages. No login, CAPTCHA solving, stealth plugins or user-agent spoofing.
-- If a site shows a bot challenge, that platform stops with `BLOCKED` (city map searches retry later, resuming at the same tile).
-- Random 1.5–4 s pauses between actions, one job at a time per worker (OTA sites in parallel within a job).
-- Reviewer names are **not stored**. Only a salted hash is kept, for de-duplication.
-- Each source can be switched off: `ENABLE_<PLATFORM>=false` in `server/.env`.
-- Scraping these sites may conflict with their terms of use. Get legal advice before using the
-  data commercially.
-
-## Tests
-
+### 1. Clone the Repository
 ```bash
-npm run db:up      # once: the tests use the rip_test database
+git clone https://github.com/Ashish-Rautela/Atithyam.git
+cd Atithyam
+```
+
+### 2. Install Dependencies & Playwright Browsers
+```bash
+# Install workspace dependencies (root, server, and client)
+npm install
+
+# Download Chromium binary for Playwright scraper
+npm run browsers:install
+```
+
+### 3. Environment Configuration
+Copy the sample environment file to the server folder:
+```bash
+# On Windows PowerShell:
+copy .env.example server\.env
+
+# On macOS / Linux:
+cp .env.example server/.env
+```
+
+Key environment variables in `server/.env`:
+```ini
+PORT=4000
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/rip
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/rip_test
+GEMINI_API_KEY=your_gemini_api_key_here     # Optional: enables AI sentiment & chat
+HEADLESS=true                               # Set to false to see browser scraping
+WORKER_MODE=embedded                        # embedded | standalone
+```
+
+### 4. Start Database & Run Migrations
+```bash
+# Start PostgreSQL 16 + PostGIS container in Docker
+npm run db:up
+
+# Run schema migrations (creates cities, hotels, reviews, compsets, etc.)
+npm run db:migrate
+```
+
+### 5. Launch the Development Environment
+```bash
+npm run dev
+```
+- **Web UI:** [http://localhost:5173](http://localhost:5173)
+- **Express API:** [http://localhost:4000](http://localhost:4000)
+
+---
+
+## 🧪 Testing & Verification
+
+### Unit & Database Integration Tests
+The repository features an automated test suite with Vitest:
+```bash
+# Run unit tests, database queries, and parser fixtures
 npm test
 ```
+- `tests/unit`: Markup parsers with fixture HTML from live platforms, normalisers, and matching logic.
+- `tests/db`: Real PostgreSQL/PostGIS queries, upserts, spatial clustering, queue prioritization, deduplication, and scheduler logic.
+- `tests/browser`: In-page extractor tests against Chromium.
 
-- `tests/unit`: parsers fed with markup captured from the live sites, normalisation, matching,
-  comparability rules, map tiles.
-- `tests/db`: the real Postgres/PostGIS SQL: upserts, neighbour graph, DBSCAN clusters, coverage,
-  15-day jitter, queue priority/dedupe/retry/recovery, scheduler, onboarding, REST API. The browser is
-  replaced by stubs where a job would scrape. Skipped, with a hint, if the test database is not running.
-- `tests/browser`: in-page extractors in Chromium against captured markup.
+### Live Smoke Tests (No UI Required)
+Verify the scraper and GIS ingestion pipelines against real live endpoints directly from your CLI:
+```bash
+# 1. Seed a sample town (finds bounds, pulls 2 tiles, builds spatial graph & clusters)
+npm run smoke:seed -- "Mussoorie"
 
-## Project layout
+# 2. Collect one hotel and its OTA listings immediately
+npm run smoke -- "JW Marriott Walnut Grove" "Mussoorie" --max 20
 
-```
-client/src/features
-  search       DB lookup as you type → Google search for new hotels → claim
-  business     property page: freshness, micro-market, platforms, reviews
-  competitors  candidates from the database, selection, collection status
-  seeding      add cities/towns, progress, pause/resume/re-seed, queue; city page with clusters
-server/
-  migrations/                 SQL schema (applied automatically)
-  src/apps/api                Express app + entry point (runs the worker when WORKER_MODE=embedded)
-  src/apps/worker             queue worker + standalone entry (`npm run worker`)
-  src/data                    all SQL: hotels, listings/reviews, geo (graph, clusters, coverage), cities, jobs, compsets
-  src/services/review-ingestion   adapters, browser, matching, normalizers, profile job
-  src/services/competitor-discovery  candidates from the graph, selection, collection
-  src/services/seeding        city seeding job, area discovery job, owner onboarding, refresh scheduler
-  src/shared                  config, db pool + migrations, logging, errors, validation, utils
-  scripts/                    migrate.js, smoke.js, smoke-seed.js
-  tests/                      unit, db, browser tests
-docs/                         scraping notes, AWS deployment
-infra/                        AWS: template.yaml (app stack), pipeline.yaml (CI/CD), buildspecs,
-                              ec2/deploy.sh (runs on the server), ec2/app.env (production settings)
-Dockerfile, docker-compose.yml, docker/entrypoint.sh
+# 3. Verify Gemini AI connectivity and classification
+npm run ai:check
 ```
 
-## Troubleshooting
+---
 
-| Symptom | Fix |
-|---|---|
-| `Chromium is not installed for Playwright` | `npm run browsers:install` |
-| A platform shows **Blocked** | Wait a while and use *Refresh all platforms*. Keep `HEADLESS=false`. |
-| A platform shows **Page changed** | The site changed its markup. Open the saved HTML in `server/data/raw/<platform>/` and update the selectors in that adapter. |
-| MakeMyTrip **Not found** | MMT is matched through Google's price links. If Google shows no MakeMyTrip price for that hotel, paste the MMT hotel-details URL into the card. |
-| Only a few nearby places found | Choose a larger radius or search again later. Google limits signed-out results per search. |
-| `Cannot reach or migrate Postgres` on start | Start the database: `npm run db:up` (Docker Desktop must be running). Check `DATABASE_URL` in `server/.env`. |
-| `extension "postgis" is not available` | Your Postgres has no PostGIS. Use `npm run db:up`, or install PostGIS with Stack Builder. |
-| Seeding stopped with **Blocked** | Google showed a challenge. The run retries later and resumes at the same tile; or click *Resume* later. |
-| Old hotels from Step 1/2 are missing | The earlier JSON file store (`server/data/db`) is not imported. Search the hotels again; the files can be deleted. |
-| Google shows only ~5–10 reviews | That is all Google shows to signed-out visitors. Agoda, Booking.com and MMT give more. |
+## 📡 API Reference
+
+### Hotel & Competitor Management
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/hotels/lookup?name=&location=` | Instant fuzzy autocomplete search across the spatial database |
+| `POST` | `/api/businesses` | Claim a property (`{hotelId}` or `{name, googleUrl}`) and trigger onboarding |
+| `GET` | `/api/businesses/:id` | Fetch property profile, platform statuses, and freshness timestamps |
+| `GET` | `/api/businesses/:id/competitors` | List candidate comp-set, selection status, and price ratios |
+| `POST` | `/api/businesses/:id/competitors/discover` | Trigger local radius scan on Google Maps (`{radiusKm, force}`) |
+| `PUT` | `/api/businesses/:id/competitors/selection` | Save chosen competitor place IDs (`{placeIds}`) |
+| `POST` | `/api/businesses/:id/competitors/collect` | Queue background scraping for chosen competitors |
+| `POST` | `/api/businesses/:id/reseed` | Re-scan the 3 km radius around the property |
+
+### Analytics & Intelligence
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/businesses/:id/pipeline` | Track 4-step progress: Property → Competitors Found → Collected → Analysed |
+| `GET` | `/api/businesses/:id/benchmark` | 8-aspect comparison, lead/lag indicators, and quote evidence |
+| `GET` | `/api/businesses/:id/trends` | Monthly rating & aspect trends with change-point detection |
+| `GET` / `POST` | `/api/businesses/:id/summary` | Generate executive written summary (Gemini AI or rule-based) |
+| `POST` | `/api/businesses/:id/analyse` | Trigger on-demand review analysis (`{upgrade: true}` to re-analyse with AI) |
+| `POST` | `/api/businesses/:id/chat` | **Ask Front Desk:** Interactive conversational streaming AI on review corpus |
+| `GET` / `POST` | `/api/businesses/:id/events` | Log operational interventions (e.g. renovation, new chef) |
+
+### Destination & Tourism Board
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/cities` | List all seeded towns, micro-market counts, and coverage statistics |
+| `POST` | `/api/cities` | Seed new destinations (`{names: ["Nainital"], radiusKm, enrich}`) |
+| `GET` | `/api/cities/:id/destination` | Overview of town-wide civic bottlenecks (water, parking, power, roads) |
+| `GET` | `/api/cities/:id/destination/evidence.csv` | Export structured civic grievances to CSV |
+| `POST` | `/api/cities/:id/reseed` | Re-seed city (`{mode: "refresh" | "full" | "resume"}`) |
+
+---
+
+## 🔒 Ethical Data Guardrails
+
+Atithyam is engineered with respect for platform terms and user privacy:
+1. **Public Information Only:** Collects strictly public, unauthenticated web listings. Does not bypass paywalls, solve CAPTCHAs, or impersonate logged-in users.
+2. **Zero Storage of Reviewer Identities:** Reviewer names and profile links are never stored in the database. De-duplication uses a salted cryptographic hash (`reviewId`).
+3. **Respectful Request Cadence:** Background workers enforce randomised 1.5–4.0 s delays between browser interactions and process one task per worker at a time.
+4. **Selective Toggle:** Any data source can be deactivated on demand via `ENABLE_<PLATFORM>=false` in `server/.env`.
+
+---
+
+## 📂 Repository Structure
+
+```
+Atithyam/
+├── client/                     # Frontend Application (React 19 + Vite 8 + Tailwind CSS v4)
+│   ├── src/
+│   │   ├── features/           # Feature slices: home, search, business, competitors, report, auth, etc.
+│   │   ├── services/           # HTTP API client, authentication & Razorpay handlers
+│   │   ├── ui/                 # Reusable UI kit, icons, and cultural Aipan art components
+│   │   └── main.jsx            # React root & routing configuration
+│   └── index.html              # HTML shell & web metadata
+├── server/                     # Backend Application (Node.js 22 + Express 5)
+│   ├── migrations/             # Idempotent SQL schema migrations
+│   ├── src/
+│   │   ├── apps/api/           # Express REST API routes and controllers
+│   │   ├── apps/worker/        # Background queue worker (`FOR UPDATE SKIP LOCKED`)
+│   │   ├── data/               # PostGIS queries (hotels, clusters, reviews, compsets)
+│   │   ├── services/           # Ingestion adapters, competitor discovery, seeding & AI pipelines
+│   │   └── shared/             # Database pool, config, logger, and validation schemas
+│   ├── scripts/                # Database migrations and live smoke testing CLI tools
+│   └── tests/                  # Unit, DB integration, and browser tests
+├── docs/                       # In-depth architectural guides (AWS deployment, billing, scraping)
+├── infra/                      # AWS CloudFormation templates, EC2 scripts & pipeline definitions
+├── docker-compose.yml          # PostgreSQL 16 + PostGIS local container setup
+└── README.md                   # Project documentation
+```
+
+---
+
+## 👥 Authors & License
+
+- **Developer:** Ashish Rautela ([@Ashish-Rautela](https://github.com/Ashish-Rautela))
+- **Live Platform:** [https://atithyam.ashishrautela.in](https://atithyam.ashishrautela.in)
+- **Repository:** [https://github.com/Ashish-Rautela/Atithyam](https://github.com/Ashish-Rautela/Atithyam)
+
+*Crafted with pride for Himalayan & Uttarakhand Hospitality.* 🏔️
