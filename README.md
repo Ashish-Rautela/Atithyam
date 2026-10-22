@@ -322,7 +322,9 @@ Atithyam/
 
 ## 👥 Authors & License
 
-- **Developer:** Ashish Rautela ([@Ashish-Rautela](https://github.com/Ashish-Rautela))
+- **Developers:**
+  - Ashish Rautela ([@Ashish-Rautela](https://github.com/Ashish-Rautela))
+  - Sahil Negi ([@snmcodes99](https://github.com/snmcodes99))
 - **Live Platform:** [https://atithyam.ashishrautela.in](https://atithyam.ashishrautela.in)
 - **Repository:** [https://github.com/Ashish-Rautela/Atithyam](https://github.com/Ashish-Rautela/Atithyam)
 
